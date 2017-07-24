@@ -267,26 +267,26 @@ MediaTek MT8163 (Cortex-A53) @ 1.50GHz (sans perf)
 
 Scalar version
 ```
-ubuntu-phablet:~/test$ ../clang+llvm-3.6.2-aarch64-linux-gnu/bin/clang++ filter.cpp -march=armv8-a -mtune=cortex-a53 -Ofast
-ubuntu-phablet:~/test$ time ./a.out
+$ ../clang+llvm-3.6.2-aarch64-linux-gnu/bin/clang++ filter.cpp -march=armv8-a -mtune=cortex-a53 -Ofast
+$ time ./a.out
 alabalanica1234
 
 real    0m1.417s
 user    0m1.410s
 sys    0m0.000s
 
-ubuntu-phablet:~/test$ echo "scale=4; 1.417 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
+$ echo "scale=4; 1.417 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 2.6568
 ```
 ASIMD2 version (batch of 16, misaligned write)
 ```
-ubuntu-phablet:~/test$ ../clang+llvm-3.6.2-aarch64-linux-gnu/bin/clang++ filter.cpp -march=armv8-a -mtune=cortex-a53 -Ofast
-ubuntu-phablet:~/test$ time ./a.out
+$ ../clang+llvm-3.6.2-aarch64-linux-gnu/bin/clang++ filter.cpp -march=armv8-a -mtune=cortex-a53 -Ofast
+$ time ./a.out
 alabalanica1234
 
 real    0m0.912s
 user    0m0.900s
 sys    0m0.000s
-ubuntu-phablet:~/test$ echo "scale=4; 0.912 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
+$ echo "scale=4; 0.912 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 1.7100
 ```
