@@ -61,17 +61,14 @@ Xeon E5-2687W @ 3.10GHz
 Scalar version
 ```
 $ g++-4.8 filter.cpp -Ofast
-$ perf stat -e task-clock,cycles,stalled-cycles-frontend,stalled-cycles-backend,instructions -- ./a.out
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234
 
  Performance counter stats for './a.out':
 
         421.886991      task-clock (msec)         #    0.998 CPUs utilized
      1,309,087,898      cycles                    #    3.103 GHz
-       107,572,433      stalled-cycles-frontend   #    8.22% frontend cycles idle
-         1,844,640      stalled-cycles-backend    #    0.14% backend  cycles idle
      4,603,132,268      instructions              #    3.52  insns per cycle
-                                                  #    0.02  stalled cycles per insn
 
        0.422602570 seconds time elapsed
 
