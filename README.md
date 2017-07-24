@@ -213,14 +213,14 @@ alabalanica1234
 
  Performance counter stats for './a.out':
 
-       1140.964920      task-clock (msec)         #    1.000 CPUs utilized
-     1,483,244,600      cycles                    #    1.300 GHz
-     1,504,029,406      instructions              #    1.01  insns per cycle
+       1140.643640      task-clock (msec)         #    0.999 CPUs utilized
+     1,482,826,308      cycles                    #    1.300 GHz
+     1,504,011,807      instructions              #    1.01  insns per cycle
 
-       1.141525483 seconds time elapsed
+       1.141241760 seconds time elapsed
 
-$ echo "scale=4; 1483244600 / (5 * 10^7 * 32)" | bc
-.9270
+$ echo "scale=4; 1482826308 / (5 * 10^7 * 32)" | bc
+.9267
 ```
 ---
 AMD C60 (Bobcat) @ 1.333GHz
