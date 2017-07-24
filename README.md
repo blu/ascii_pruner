@@ -42,7 +42,7 @@ I took the liberty to change Daniel’s original SSSE3 pruning routine - actuall
 
 Table 2. Performance of `testee01` on desktop-level cores
 
-* Micro-arch tuning for A57 passed to the arm64 build since the compiler’s generic scheduler is openly worse in this version when it comes to NEON code, and A57 is a fairly “generic” ARMv8 common denominator when it comes to scheduling.
+Note: uarch tuning for A57 passed to the arm64 build since the compiler’s generic scheduler is openly worse in this version when it comes to NEON code, and A57 is a fairly “generic” ARMv8 common denominator when it comes to scheduling.
 
 As you see, the per-clock efficiency advantage is 2.5x for Sandy Bridge and 2.8x for Ivy Bridge, respectively - cores that at the same (or similar) fabnode would be 4x the area of the A72. So things don’t look so bad for the ARM chips after all!
 
@@ -55,3 +55,238 @@ Bonus material: same test on entry-level arm64 and amd64 CPUs:
 
 Table 3. Performance of `testee00` and `testee01` on entry-level cores
 
+---
+Xeon E5-2687W @ 3.10GHz
+
+Scalar version
+```
+$ g++-4.8 filter.cpp -Ofast
+$ perf stat -e task-clock,cycles,stalled-cycles-frontend,stalled-cycles-backend,instructions -- ./a.out
+alabalanica1234
+
+ Performance counter stats for './a.out':
+
+        421.886991      task-clock (msec)         #    0.998 CPUs utilized
+     1,309,087,898      cycles                    #    3.103 GHz
+       107,572,433      stalled-cycles-frontend   #    8.22% frontend cycles idle
+         1,844,640      stalled-cycles-backend    #    0.14% backend  cycles idle
+     4,603,132,268      instructions              #    3.52  insns per cycle
+                                                  #    0.02  stalled cycles per insn
+
+       0.422602570 seconds time elapsed
+
+$ echo "scale=4; 1309087898 / (5 * 10^7 * 16)" | bc
+1.6363
+```
+SSSE3 version (batch of 16, misaligned write)
+```
+$ g++-4.8 filter.cpp -Ofast -mssse3
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234a
+
+ Performance counter stats for './a.out':
+
+        109.063426      task-clock (msec)         #    0.997 CPUs utilized
+       338,414,215      cycles                    #    3.103 GHz
+     1,052,118,398      instructions              #    3.11  insns per cycle
+
+       0.109422808 seconds time elapsed
+
+$ echo "scale=4; 338414215 / (5 * 10^7 * 16)" | bc
+.4230
+```
+---
+Xeon E3-1270v2 @ 1.60GHz
+
+Scalar version
+```
+$ g++-5 -Ofast filter.cpp
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234
+
+ Performance counter stats for './a.out':
+
+        810.515709 task-clock (msec)         #    0.999 CPUs utilized
+     1,294,903,960 cycles                    #    1.598 GHz
+     4,601,118,631 instructions              #    3.55  insns per cycle
+
+       0.811646618 seconds time elapsed
+
+$ echo "scale=4; 1294903960 / (5 * 10^7 * 16)" | bc
+1.6186
+```
+SSSE3 version (batch of 16, misaligned write)
+```
+$ g++-5 -Ofast filter.cpp -mssse3
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234a
+
+ Performance counter stats for './a.out':
+
+        188.995814 task-clock (msec)         #    0.997 CPUs utilized
+       301,931,101 cycles                    #    1.598 GHz
+     1,050,607,539 instructions              #    3.48  insns per cycle
+
+       0.189536527 seconds time elapsed
+
+$ echo "scale=4; 301931101 / (5 * 10^7 * 16)" | bc
+.3774
+```
+---
+Intel i7-5820K
+
+Scalar version
+```
+$ g++-4.8 -Ofast filter.cpp
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234
+
+ Performance counter stats for './a.out':
+
+        339.202545      task-clock (msec)         #    0.997 CPUs utilized
+     1,204,872,493      cycles                    #    3.552 GHz
+     4,602,943,398      instructions              #    3.82  insn per cycle
+
+       0.340089829 seconds time elapsed
+
+$ echo "scale=4; 1204872493 / (5 * 10^7 * 16)" | bc
+1.5060
+```
+---
+AMD Ryzen 7 1700
+
+Scalar version
+```
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234
+
+ Performance counter stats for './a.out':
+
+        356,169901      task-clock:u (msec)       #    0,999 CPUs utilized
+        1129098820      cycles:u                  #    3,170 GHz
+        4602126161      instructions:u            #    4,08  insn per cycle
+
+       0,356353748 seconds time elapsed
+
+$ echo "scale=4; 1129098820 / (5 * 10^7 * 16)" | bc
+1.4113
+```
+---
+Marvell ARMADA 8040 (Cortex-A72) @ 1.30GHz
+
+Scalar version
+```
+$ g++-5 filter.cpp -Ofast
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234
+
+ Performance counter stats for './a.out':
+
+        849.549040      task-clock (msec)         #    0.999 CPUs utilized
+     1,104,405,671      cycles                    #    1.300 GHz
+     3,251,212,918      instructions              #    2.94  insns per cycle
+
+       0.850107930 seconds time elapsed
+
+$ echo "scale=4; 1104405671 / (5 * 10^7 * 16)" | bc
+1.3805
+```
+ASIMD2 version (batch of 16, misaligned write)
+```
+$ g++-5 filter.cpp -Ofast -mcpu=cortex-a57 -mtune=cortex-a57
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234
+
+ Performance counter stats for './a.out':
+
+        646.394560      task-clock (msec)         #    0.999 CPUs utilized
+       840,305,966      cycles                    #    1.300 GHz
+       801,000,092      instructions              #    0.95  insns per cycle
+
+       0.646946289 seconds time elapsed
+
+$ echo "scale=4; 840305966 / (5 * 10^7 * 16)" | bc
+1.0503
+```
+ASIMD2 version (batch of 32, misaligned write)
+```
+$ clang++-3.7 filter.cpp -Ofast -mcpu=cortex-a57 -mtune=cortex-a57
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234
+
+ Performance counter stats for './a.out':
+
+       1140.964920      task-clock (msec)         #    1.000 CPUs utilized
+     1,483,244,600      cycles                    #    1.300 GHz
+     1,504,029,406      instructions              #    1.01  insns per cycle
+
+       1.141525483 seconds time elapsed
+
+$ echo "scale=4; 1483244600 / (5 * 10^7 * 32)" | bc
+.9270
+```
+---
+AMD C60 (Bobcat) @ 1.333GHz
+
+Scalar version
+```
+$ g++-4.8 filter.cpp -Ofast
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234
+
+ Performance counter stats for './a.out':
+
+       2208.190651 task-clock (msec)         #    0.997 CPUs utilized
+     2,860,081,604 cycles                    #    1.295 GHz
+     4,602,968,860 instructions              #    1.61  insns per cycle
+
+       2.214173331 seconds time elapsed
+
+$ echo "scale=4; 2860081604 / (5 * 10^7 * 16)" | bc
+3.5751
+```
+SSSE3 version (batch of 16, misaligned write)
+```
+$ clang++-3.5 filter.cpp -Ofast -mssse3
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234a
+
+ Performance counter stats for './a.out':
+
+       1098.519499 task-clock (msec)         #    0.998 CPUs utilized
+     1,457,266,396 cycles                    #    1.327 GHz
+     1,053,073,591 instructions              #    0.72  insns per cycle
+
+       1.101240320 seconds time elapsed
+
+$ echo "scale=4; 1457266396 / (5 * 10^7 * 16)" | bc
+1.8215
+```
+---
+MediaTek MT8163 (Cortex-A53) @ 1.50GHz (sans perf)
+
+Scalar version
+```
+ubuntu-phablet:~/test$ ../clang+llvm-3.6.2-aarch64-linux-gnu/bin/clang++ filter.cpp -march=armv8-a -mtune=cortex-a53 -Ofast
+ubuntu-phablet:~/test$ time ./a.out
+alabalanica1234
+
+real    0m1.417s
+user    0m1.410s
+sys    0m0.000s
+
+ubuntu-phablet:~/test$ echo "scale=4; 1.417 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
+2.6568
+```
+ASIMD2 version (batch of 16, misaligned write)
+```
+ubuntu-phablet:~/test$ ../clang+llvm-3.6.2-aarch64-linux-gnu/bin/clang++ filter.cpp -march=armv8-a -mtune=cortex-a53 -Ofast
+ubuntu-phablet:~/test$ time ./a.out
+alabalanica1234
+
+real    0m0.912s
+user    0m0.900s
+sys    0m0.000s
+ubuntu-phablet:~/test$ echo "scale=4; 0.912 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
+1.7100
+```
