@@ -2,7 +2,7 @@ A friend of mine brought to my attention an interesting article on habrahabr.ru 
 
 Well, challenge accepted!
 
-The author had started with a baseline - a serial implementation, so I too decided to start from there and move up. Let’s call this baseline ‘testee00’ and get familiar with it before we move on:
+The author had started with a baseline - a serial implementation, so I too decided to start from there and move up. Let’s call this baseline `testee00` and get familiar with it before we move on:
 
 ```c
 inline void testee00() {
@@ -15,7 +15,7 @@ inline void testee00() {
 }
 ```
 
-I ran `testee00` on a bunch amd64 CPUs and one arm64 CPU, using different GCC and Clang compiler versions, always taking the best compiler result. Here are the clocks/character results, computed from perf -e cycles divided by the number of processed chars (in our case - 5 * 10^7 * 16), and truncated to the 4th digit after the decimal point:
+I ran `testee00` on a bunch amd64 CPUs and one arm64 CPU, using different GCC and Clang compiler versions, always taking the best compiler result. Here are the clocks/character results, computed from `perf -e cycles` divided by the number of processed chars (in our case - 5 * 10^7 * 16), and truncated to the 4th digit after the decimal point:
 
 
 | CPU                          | Compiler & flags                   | clocks/character |
