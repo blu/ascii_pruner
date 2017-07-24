@@ -60,7 +60,7 @@ Xeon E5-2687W @ 3.10GHz
 
 Scalar version
 ```
-$ g++-4.8 filter.cpp -Ofast
+$ g++-4.8 prune.cpp -Ofast
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234
 
@@ -77,7 +77,7 @@ $ echo "scale=4; 1309087898 / (5 * 10^7 * 16)" | bc
 ```
 SSSE3 version (batch of 16, misaligned write)
 ```
-$ g++-4.8 filter.cpp -Ofast -mssse3
+$ g++-4.8 prune.cpp -Ofast -mssse3
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234a
 
@@ -97,7 +97,7 @@ Xeon E3-1270v2 @ 1.60GHz
 
 Scalar version
 ```
-$ g++-5 -Ofast filter.cpp
+$ g++-5 -Ofast prune.cpp
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234
 
@@ -114,7 +114,7 @@ $ echo "scale=4; 1294903960 / (5 * 10^7 * 16)" | bc
 ```
 SSSE3 version (batch of 16, misaligned write)
 ```
-$ g++-5 -Ofast filter.cpp -mssse3
+$ g++-5 -Ofast prune.cpp -mssse3
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234a
 
@@ -134,7 +134,7 @@ Intel i7-5820K
 
 Scalar version
 ```
-$ g++-4.8 -Ofast filter.cpp
+$ g++-4.8 -Ofast prune.cpp
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234
 
@@ -173,7 +173,7 @@ Marvell ARMADA 8040 (Cortex-A72) @ 1.30GHz
 
 Scalar version
 ```
-$ g++-5 filter.cpp -Ofast
+$ g++-5 prune.cpp -Ofast
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234
 
@@ -190,7 +190,7 @@ $ echo "scale=4; 1104405671 / (5 * 10^7 * 16)" | bc
 ```
 ASIMD2 version (batch of 16, misaligned write)
 ```
-$ g++-5 filter.cpp -Ofast -mcpu=cortex-a57 -mtune=cortex-a57
+$ g++-5 prune.cpp -Ofast -mcpu=cortex-a57 -mtune=cortex-a57
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234
 
@@ -207,7 +207,7 @@ $ echo "scale=4; 840305966 / (5 * 10^7 * 16)" | bc
 ```
 ASIMD2 version (batch of 32, misaligned write)
 ```
-$ clang++-3.7 filter.cpp -Ofast -mcpu=cortex-a57 -mtune=cortex-a57
+$ clang++-3.7 prune.cpp -Ofast -mcpu=cortex-a57 -mtune=cortex-a57
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234
 
@@ -227,7 +227,7 @@ AMD C60 (Bobcat) @ 1.333GHz
 
 Scalar version
 ```
-$ g++-4.8 filter.cpp -Ofast
+$ g++-4.8 prune.cpp -Ofast
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234
 
@@ -244,7 +244,7 @@ $ echo "scale=4; 2860081604 / (5 * 10^7 * 16)" | bc
 ```
 SSSE3 version (batch of 16, misaligned write)
 ```
-$ clang++-3.5 filter.cpp -Ofast -mssse3
+$ clang++-3.5 prune.cpp -Ofast -mssse3
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234a
 
@@ -264,7 +264,7 @@ MediaTek MT8163 (Cortex-A53) @ 1.50GHz (sans perf)
 
 Scalar version
 ```
-$ ../clang+llvm-3.6.2-aarch64-linux-gnu/bin/clang++ filter.cpp -march=armv8-a -mtune=cortex-a53 -Ofast
+$ ../clang+llvm-3.6.2-aarch64-linux-gnu/bin/clang++ prune.cpp -march=armv8-a -mtune=cortex-a53 -Ofast
 $ time ./a.out
 alabalanica1234
 
@@ -277,7 +277,7 @@ $ echo "scale=4; 1.417 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 ```
 ASIMD2 version (batch of 16, misaligned write)
 ```
-$ ../clang+llvm-3.6.2-aarch64-linux-gnu/bin/clang++ filter.cpp -march=armv8-a -mtune=cortex-a53 -Ofast
+$ ../clang+llvm-3.6.2-aarch64-linux-gnu/bin/clang++ prune.cpp -march=armv8-a -mtune=cortex-a53 -Ofast
 $ time ./a.out
 alabalanica1234
 
