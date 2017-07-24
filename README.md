@@ -270,7 +270,7 @@ alabalanica1234
 
 real    0m1.417s
 user    0m1.410s
-sys    0m0.000s
+sys     0m0.000s
 
 $ echo "scale=4; 1.417 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 2.6568
@@ -283,7 +283,7 @@ alabalanica1234
 
 real    0m0.912s
 user    0m0.900s
-sys    0m0.000s
+sys     0m0.000s
 $ echo "scale=4; 0.912 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 1.7100
 ```
