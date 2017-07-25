@@ -1,8 +1,10 @@
 // pruning of blanks from an ascii stream -- timing of candidate routines
 #if __aarch64__
 	#include <arm_neon.h>
-#else
+#elif __SSSE3__
 	#include <tmmintrin.h>
+#elif __SSE2__
+	#include <emmintrin.h>
 #endif
 #include <stdio.h>
 #include <stdint.h>
@@ -44,7 +46,7 @@ void print_uint8x16(
 	fprintf(f, "%.3hhu }", last);
 }
 
-#else
+#elif __SSE2__
 void print_uint8x16(
 	const __m128i x,
 	FILE* f = stderr) {
@@ -137,7 +139,7 @@ inline void testee02() {
 	// omitted from this test: output ptr needs to be advanced by count of non-blanks
 }
 
-#else
+#elif __SSSE3__
 // SSSE3 version; in-vector string compaction via permute ops (pshufb) using prefix-sum indices
 inline void testee01() {
 	__m128i const vinput = _mm_load_si128(reinterpret_cast< const __m128i* >(input));
