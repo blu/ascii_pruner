@@ -163,9 +163,17 @@ int main(int, char**) {
 	const size_t rep = size_t(5e7);
 
 	for (size_t i = 0; i < rep; ++i) {
-		// one of testees
+
+#if TESTEE == 2
+		testee02();
+
+#elif TESTEE == 1
+		testee01();
+
+#else
 		testee00();
 
+#endif
 		// iteration obfuscator
 		asm volatile ("" : : : "memory");
 	}
