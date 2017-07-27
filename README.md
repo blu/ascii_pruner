@@ -44,8 +44,8 @@ I took the liberty to change Daniel’s original SSSE3 pruning routine - actuall
 
 Table 2. Performance of `testee01` on desktop-level cores
 
-Note: uarch tuning for A57 passed to the arm64 build since the compiler’s generic scheduler is openly worse in this version when it comes to NEON code, and A57 is a fairly “generic” ARMv8 common denominator when it comes to scheduling.
-Node: AVX2-128 used for Haswell as it uses the same intrinsics while producing better results than SSSE3.
+Note: uarch tuning for A57 passed to the arm64 build since the compiler’s generic scheduler is openly worse in this version when it comes to NEON code, and A57 is a fairly “generic” ARMv8 common denominator when it comes to scheduling.  
+Note: AVX2-128 used for Haswell as it uses the same intrinsics while producing better results than SSSE3.
 
 As you see, the per-clock efficiency advantage is 2.5x for Sandy Bridge and 2.8x for Ivy Bridge, respectively - cores that at the same (or similar) fabnode would be 4x the area of the A72. So things don’t look so bad for the ARM chips after all, even though ARM's SIMD does not scale nearly as good as Intel's in this scenario, which appears to be an uarch issue with A72.
 
