@@ -39,6 +39,7 @@ I took the liberty to change Daniel’s original SSSE3 pruning routine - actuall
 | Intel Xeon E5-2687W (SNB)    | g++-4.8 -Ofast -mssse3             | .4230            |
 | Intel Xeon E3-1270v2 (IVB)   | g++-5.4 -Ofast -mssse3             | .3774            |
 | Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2          | .3661            |
+| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3         | .3181            |
 | Marvell 8040 (Cortex-A72)    | g++-5.4 -Ofast -mcpu=cortex-a57    | 1.0503           |
 
 Table 2. Performance of `testee01` on desktop-level cores
@@ -159,9 +160,9 @@ alabalanica1234a
  
  Performance counter stats for './a.out':
  
-         82.088454      task-clock (msec)         #    0.995 CPUs utilized          
-       292,925,767      cycles                    #    3.568 GHz                    
-       752,064,811      instructions              #    2.57  insn per cycle        
+         82.088454      task-clock (msec)         #    0.995 CPUs utilized
+       292,925,767      cycles                    #    3.568 GHz
+       752,064,811      instructions              #    2.57  insn per cycle
  
        0.082493809 seconds time elapsed
  
@@ -186,6 +187,23 @@ alabalanica1234
 
 $ echo "scale=4; 1129098820 / (5 * 10^7 * 16)" | bc
 1.4113
+```
+SSSE3 version (batch of 16, misaligned write)
+```
+$ clang++-4 -Ofast prune.cpp -mssse3 -DTESTEE=1
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234a
+
+ Performance counter stats for './a.out':
+
+         80,264700      task-clock:u (msec)       #    0,997 CPUs utilized
+         254557232      cycles:u                  #    3,171 GHz
+        1002124741      instructions:u            #    3,94  insn per cycle
+
+       0,080469883 seconds time elapsed
+
+$ echo "scale=4; 254557232 / (5 * 10^7 * 16)" | bc
+.3181
 ```
 ---
 Marvell ARMADA 8040 (Cortex-A72) @ 1.30GHz

@@ -177,7 +177,14 @@ int main(int, char**) {
 		// iteration obfuscator
 		asm volatile ("" : : : "memory");
 	}
+
+#if TESTEE
 	fprintf(stderr, "%.32s\n", output + misalign);
+
+#else
+	fprintf(stderr, "%.32s\n", output);
+
+#endif
 	return 0;
 }
 
