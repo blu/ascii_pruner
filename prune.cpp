@@ -193,7 +193,7 @@ inline void testee02() {
 	__m128i const res0 = _mm_shuffle_epi8(vinput0, index0);
 	__m128i const res1 = _mm_shuffle_epi8(vinput1, index1);
 
-	_mm_storeu_si128(reinterpret_cast< __m128i* >(output + misalign), res);
+	_mm_storeu_si128(reinterpret_cast< __m128i* >(output + misalign), res0);
 	_mm_storeu_si128(reinterpret_cast< __m128i* >(output + misalign + sizeof(__m128i) - blen0), res1);
 	// omitted from this test: output ptr needs to be advanced by count of non-blanks
 }
