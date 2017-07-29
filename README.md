@@ -67,7 +67,7 @@ Table 4. Performance of `testee01` on entry-level cores
 
 | CPU                          | Compiler & codegen flags                            | clocks/char (batch 32)   |
 | ---------------------------- | --------------------------------------------------- | ------------------------ |
-| AMD C60 (Bobcat)             | clang++-3.7 -Ofast -mssse3 -mpopcnt                 | 1.6942                   |
+| AMD C60 (Bobcat)             | clang++-3.7 -Ofast -mssse3 -mpopcnt                 | 1.6941                   |
 | MediaTek MT8163 (Cortex-A53) | clang++-3.6 -Ofast -mcpu=cortex-a53                 | 1.1081                   |
 
 Table 5. Performance of `testee02` on entry-level cores
