@@ -94,7 +94,7 @@ $ echo "scale=4; 1309087898 / (5 * 10^7 * 16)" | bc
 ```
 SSSE3 version (batch of 16, misaligned write)
 ```
-$ g++-4.8 prune.cpp -Ofast -mssse3 -DTESTEE=1
+$ g++-4.8 prune.cpp -Ofast -mssse3 -mpopcnt -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234a
 
@@ -131,7 +131,7 @@ $ echo "scale=4; 1294903960 / (5 * 10^7 * 16)" | bc
 ```
 SSSE3 version (batch of 16, misaligned write)
 ```
-$ g++-5 -Ofast prune.cpp -mssse3 -DTESTEE=1
+$ g++-5 -Ofast prune.cpp -mssse3 -mpopcnt -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234a
 
@@ -204,7 +204,7 @@ $ echo "scale=4; 1129098820 / (5 * 10^7 * 16)" | bc
 ```
 SSSE3 version (batch of 16, misaligned write)
 ```
-$ clang++-4 -Ofast prune.cpp -mssse3 -DTESTEE=1
+$ clang++-4 -Ofast prune.cpp -mssse3 -mpopcnt -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234a
 
