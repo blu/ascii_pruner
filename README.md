@@ -318,14 +318,14 @@ alabalanica1234
 
  Performance counter stats for './a.out':
 
-       2039.371094 task-clock (msec)         #    0.998 CPUs utilized
-     2,710,788,424 cycles                    #    1.329 GHz
-     2,104,109,526 instructions              #    0.78  insns per cycle
+       2041.723626 task-clock (msec)         #    0.998 CPUs utilized
+     2,710,683,392 cycles                    #    1.328 GHz
+     2,104,158,536 instructions              #    0.78  insns per cycle
 
-       2.042859554 seconds time elapsed
+       2.045474862 seconds time elapsed
 
-$ echo "scale=4; 2710788424 / (5 * 10^7 * 32)" | bc
-1.6942
+$ echo "scale=4; 2710683392 / (5 * 10^7 * 32)" | bc
+1.6941
 ```
 ---
 MediaTek MT8163 (Cortex-A53) @ 1.50GHz (sans perf)
