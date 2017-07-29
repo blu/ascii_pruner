@@ -94,11 +94,16 @@ inline void testee01() {
 
 	uint8x16_t const index = vsubq_u8((uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }, prfsum);
 
-	// couldn't find an intrinsic for 16-byte tbl op
+#if QUIRK_001_MISSCHEDULED_TBL
+	// clang-3.7 produces worse scheduling when it encounters tbl -- put that in a black box
 	uint8x16_t res;
 	asm volatile ("tbl %0.16b, {%1.16b}, %2.16b"
 		: "=w" (res) : "w" (vinput), "w" (index) : );
 
+#else
+	uint8x16_t const res = vqtbl1q_u8(vinput, index);
+
+#endif
 	vst1q_u8(output + misalign, res);
 	// omitted from this test: output ptr needs to be advanced by count of non-blanks
 }
@@ -110,8 +115,8 @@ inline void testee02() {
 	uint8x16_t prfsum1 = vcleq_u8(vinput1, vdupq_n_u8(' '));
 
 	// before computing the actual prefix sum: count_of_blanks := vaddvq_u8(prfsum)
-	const int8_t blen0 = vaddvq_u8(prfsum0);
-	const int8_t blen1 = vaddvq_u8(prfsum1);
+	int8_t const blen0 = vaddvq_u8(prfsum0);
+	int8_t const blen1 = vaddvq_u8(prfsum1);
 
 	prfsum0 = vaddq_u8(prfsum0, vextq_u8(vdupq_n_u8(0), prfsum0, 16 - 1));
 	prfsum1 = vaddq_u8(prfsum1, vextq_u8(vdupq_n_u8(0), prfsum1, 16 - 1));
@@ -125,7 +130,8 @@ inline void testee02() {
 	uint8x16_t const index0 = vsubq_u8((uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }, prfsum0);
 	uint8x16_t const index1 = vsubq_u8((uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }, prfsum1);
 
-	// couldn't find an intrinsic for 16-byte tbl op
+#if QUIRK_001_MISSCHEDULED_TBL
+	// clang-3.7 produces worse scheduling when it encounters tbl -- put that in a black box
 	uint8x16_t res0, res1;
 	asm volatile (
 		"tbl %0.16b, {%2.16b}, %3.16b\n\t"
@@ -134,6 +140,11 @@ inline void testee02() {
 		: "w" (vinput0), "w" (index0),
 		  "w" (vinput1), "w" (index1) : );
 
+#else
+	uint8x16_t const res0 = vqtbl1q_u8(vinput0, index0);
+	uint8x16_t const res1 = vqtbl1q_u8(vinput1, index1);
+
+#endif
 	vst1q_u8(output + misalign, res0);
 	vst1q_u8(output + misalign + sizeof(uint8x16_t) + blen0, res1);
 	// omitted from this test: output ptr needs to be advanced by count of non-blanks
@@ -158,9 +169,38 @@ inline void testee01() {
 	// omitted from this test: output ptr needs to be advanced by count of non-blanks
 }
 
+inline void testee02() {
+	__m128i const vinput0 = _mm_load_si128(reinterpret_cast< const __m128i* >(input));
+	__m128i const vinput1 = _mm_load_si128(reinterpret_cast< const __m128i* >(input) + 1);
+	__m128i prfsum0 = _mm_cmplt_epi8(vinput0, _mm_set1_epi8(' ' + 1));
+	__m128i prfsum1 = _mm_cmplt_epi8(vinput1, _mm_set1_epi8(' ' + 1));
+
+	// before computing the actual prefix sum: count_of_blanks := _mm_movemask_epi8(prfsum)
+	int32_t const blen0 = _mm_movemask_epi8(prfsum0);
+	int32_t const blen1 = _mm_movemask_epi8(prfsum1);
+
+	prfsum0 = _mm_add_epi8(prfsum0, _mm_slli_si128(prfsum0, 1));
+	prfsum1 = _mm_add_epi8(prfsum1, _mm_slli_si128(prfsum1, 1));
+	prfsum0 = _mm_add_epi8(prfsum0, _mm_slli_si128(prfsum0, 2));
+	prfsum1 = _mm_add_epi8(prfsum1, _mm_slli_si128(prfsum1, 2));
+	prfsum0 = _mm_add_epi8(prfsum0, _mm_slli_si128(prfsum0, 4));
+	prfsum1 = _mm_add_epi8(prfsum1, _mm_slli_si128(prfsum1, 4));
+	prfsum0 = _mm_add_epi8(prfsum0, _mm_slli_si128(prfsum0, 8));
+	prfsum1 = _mm_add_epi8(prfsum1, _mm_slli_si128(prfsum1, 8));
+
+	__m128i const index0 = _mm_sub_epi8(_mm_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), prfsum0);
+	__m128i const index1 = _mm_sub_epi8(_mm_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), prfsum1);
+	__m128i const res0 = _mm_shuffle_epi8(vinput0, index0);
+	__m128i const res1 = _mm_shuffle_epi8(vinput1, index1);
+
+	_mm_storeu_si128(reinterpret_cast< __m128i* >(output + misalign), res);
+	_mm_storeu_si128(reinterpret_cast< __m128i* >(output + misalign + sizeof(__m128i) - blen0), res1);
+	// omitted from this test: output ptr needs to be advanced by count of non-blanks
+}
+
 #endif
 int main(int, char**) {
-	const size_t rep = size_t(5e7);
+	size_t const rep = size_t(5e7);
 
 	for (size_t i = 0; i < rep; ++i) {
 
