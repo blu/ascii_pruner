@@ -6,6 +6,9 @@
 #elif __SSE2__
 	#include <emmintrin.h>
 #endif
+#if __POPCNT__
+	#include <popcntintrin.h>
+#endif
 #include <stdio.h>
 #include <stdint.h>
 
@@ -156,7 +159,7 @@ inline void testee01() {
 	__m128i const vinput = _mm_load_si128(reinterpret_cast< const __m128i* >(input));
 	__m128i prfsum = _mm_cmplt_epi8(vinput, _mm_set1_epi8(' ' + 1));
 
-	// before computing the actual prefix sum: count_of_blanks := _mm_movemask_epi8(prfsum)
+	// before computing the actual prefix sum: count_of_blanks := _mm_popcnt_u32(_mm_movemask_epi8(prfsum))
 	prfsum = _mm_add_epi8(prfsum, _mm_slli_si128(prfsum, 1));
 	prfsum = _mm_add_epi8(prfsum, _mm_slli_si128(prfsum, 2));
 	prfsum = _mm_add_epi8(prfsum, _mm_slli_si128(prfsum, 4));
@@ -175,9 +178,9 @@ inline void testee02() {
 	__m128i prfsum0 = _mm_cmplt_epi8(vinput0, _mm_set1_epi8(' ' + 1));
 	__m128i prfsum1 = _mm_cmplt_epi8(vinput1, _mm_set1_epi8(' ' + 1));
 
-	// before computing the actual prefix sum: count_of_blanks := _mm_movemask_epi8(prfsum)
-	int32_t const blen0 = _mm_movemask_epi8(prfsum0);
-	int32_t const blen1 = _mm_movemask_epi8(prfsum1);
+	// before computing the actual prefix sum: count_of_blanks := _mm_popcnt_u32(_mm_movemask_epi8(prfsum))
+	uint32_t const blen0 = _mm_popcnt_u32(_mm_movemask_epi8(prfsum0));
+	uint32_t const blen1 = _mm_popcnt_u32(_mm_movemask_epi8(prfsum1));
 
 	prfsum0 = _mm_add_epi8(prfsum0, _mm_slli_si128(prfsum0, 1));
 	prfsum1 = _mm_add_epi8(prfsum1, _mm_slli_si128(prfsum1, 1));

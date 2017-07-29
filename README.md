@@ -51,12 +51,26 @@ As you see, the per-clock efficiency advantage is 2.5x for Sandy Bridge and 2.8x
 
 Bonus material: same test on entry-level arm64 and amd64 CPUs:
 
-| CPU                          | Compiler & codegen flags                            | clocks/character, scalar | clocks/character, vector |
-| ---------------------------- | --------------------------------------------------- | ------------------------ | ------------------------ |
-| AMD C60 (Bobcat)             | g++-4.8 -Ofast -mssse3                              | 3.5751                   | 1.8215                   |
-| MediaTek MT8163 (Cortex-A53) | clang++-3.6 -Ofast -mcpu=cortex-a53                 | 2.6568                   | 1.7100                   |
+| CPU                          | Compiler & codegen flags                            | clocks/char (scalar)     |
+| ---------------------------- | --------------------------------------------------- | ------------------------ |
+| AMD C60 (Bobcat)             | g++-4.8 -Ofast                                      | 3.5733                   |
+| MediaTek MT8163 (Cortex-A53) | clang++-3.6 -Ofast -mcpu=cortex-a53                 | 2.6568                   |
 
-Table 3. Performance of `testee00` and `testee01` on entry-level cores
+Table 3. Performance of `testee00` on entry-level cores
+
+| CPU                          | Compiler & codegen flags                            | clocks/char (batch 16)   |
+| ---------------------------- | --------------------------------------------------- | ------------------------ |
+| AMD C60 (Bobcat)             | clang++-3.7 -Ofast -mssse3 -mpopcnt                 | 1.5714                   |
+| MediaTek MT8163 (Cortex-A53) | clang++-3.6 -Ofast -mcpu=cortex-a53                 | 1.7100                   |
+
+Table 4. Performance of `testee01` on entry-level cores
+
+| CPU                          | Compiler & codegen flags                            | clocks/char (batch 32)   |
+| ---------------------------- | --------------------------------------------------- | ------------------------ |
+| AMD C60 (Bobcat)             | clang++-3.7 -Ofast -mssse3 -mpopcnt                 | 1.6942                   |
+| MediaTek MT8163 (Cortex-A53) | clang++-3.6 -Ofast -mcpu=cortex-a53                 | 1.1081                   |
+
+Table 5. Performance of `testee02` on entry-level cores
 
 ---
 Xeon E5-2687W @ 3.10GHz
@@ -270,31 +284,48 @@ alabalanica1234
 
  Performance counter stats for './a.out':
 
-       2208.190651 task-clock (msec)         #    0.997 CPUs utilized
-     2,860,081,604 cycles                    #    1.295 GHz
-     4,602,968,860 instructions              #    1.61  insns per cycle
+       2151.161881 task-clock (msec)         #    0.998 CPUs utilized
+     2,858,689,394 cycles                    #    1.329 GHz
+     4,602,837,331 instructions              #    1.61  insns per cycle
 
-       2.214173331 seconds time elapsed
+       2.154862906 seconds time elapsed
 
-$ echo "scale=4; 2860081604 / (5 * 10^7 * 16)" | bc
-3.5751
+$ echo "scale=4; 2858689394 / (5 * 10^7 * 16)" | bc
+3.5733
 ```
 SSSE3 version (batch of 16, misaligned write)
 ```
-$ clang++-3.5 prune.cpp -Ofast -mssse3 -DTESTEE=1
+$ clang++-3.7 prune.cpp -Ofast -mssse3 -mpopcnt -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234a
 
  Performance counter stats for './a.out':
 
-       1098.519499 task-clock (msec)         #    0.998 CPUs utilized
-     1,457,266,396 cycles                    #    1.327 GHz
-     1,053,073,591 instructions              #    0.72  insns per cycle
+        946.291835 task-clock (msec)         #    0.997 CPUs utilized
+     1,257,175,899 cycles                    #    1.329 GHz
+     1,002,897,072 instructions              #    0.80  insns per cycle
 
-       1.101240320 seconds time elapsed
+       0.948854740 seconds time elapsed
 
-$ echo "scale=4; 1457266396 / (5 * 10^7 * 16)" | bc
-1.8215
+$ echo "scale=4; 1257175899 / (5 * 10^7 * 16)" | bc
+1.5714
+```
+SSSE3 version (batch of 32, misaligned write)
+```
+$ clang++-3.7 prune.cpp -Ofast -mssse3 -mpopcnt -DTESTEE=2
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+alabalanica1234
+
+ Performance counter stats for './a.out':
+
+       2039.371094 task-clock (msec)         #    0.998 CPUs utilized
+     2,710,788,424 cycles                    #    1.329 GHz
+     2,104,109,526 instructions              #    0.78  insns per cycle
+
+       2.042859554 seconds time elapsed
+
+$ echo "scale=4; 2710788424 / (5 * 10^7 * 32)" | bc
+1.6942
 ```
 ---
 MediaTek MT8163 (Cortex-A53) @ 1.50GHz (sans perf)
@@ -322,4 +353,16 @@ user    0m0.900s
 sys     0m0.000s
 $ echo "scale=4; 0.912 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 1.7100
+```
+ASIMD2 version (batch of 32, misaligned write)
+```
+$ clang++-3.6 prune.cpp -Ofast -mcpu=cortex-a53 -DTESTEE=2
+$ time ./a.out
+alabalanica1234
+
+real    0m1.182s
+user    0m1.170s
+sys     0m0.000s
+$ echo "scale=4; 1.182 * 1.5 * 10^9 / (5 * 10^7 * 32)" | bc
+1.1081
 ```
