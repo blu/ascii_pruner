@@ -19,8 +19,9 @@ static const size_t misalign = 1; // simulate mis-alignment at write
 // print utility
 #if __aarch64__
 void print_uint8x16(
-	const uint8x16_t x,
-	FILE* f = stderr) {
+	uint8x16_t const x,
+	bool const addNewLine,
+	FILE* const f = stderr) {
 
 	fprintf(f, "{ ");
 #define LANE(lane) \
@@ -46,13 +47,18 @@ void print_uint8x16(
 
 #undef LANE
 	const uint8_t last = vgetq_lane_u8(x, 15);
-	fprintf(f, "%.3hhu }", last);
+
+	if (addNewLine)
+		fprintf(f, "%.3hhu }\n", last);
+	else
+		fprintf(f, "%.3hhu }", last);
 }
 
 #elif __SSE2__
 void print_uint8x16(
-	const __m128i x,
-	FILE* f = stderr) {
+	__m128i const x,
+	bool const addNewLine,
+	FILE* const f = stderr) {
 
 	fprintf(f, "{ ");
 
@@ -67,7 +73,11 @@ void print_uint8x16(
 		fprintf(f, "%.3hhu, ", uint8_t(tail));
 		tail >>= sizeof(uint8_t) * 8;
 	}
-	fprintf(f, "%.3hhu }", uint8_t(tail));
+
+	if (addNewLine)
+		fprintf(f, "%.3hhu }\n", uint8_t(tail));
+	else
+		fprintf(f, "%.3hhu }", uint8_t(tail));
 }
 
 #endif
@@ -203,6 +213,68 @@ inline void testee02() {
 
 #endif
 int main(int, char**) {
+#if WIP
+#if __SSSE3__
+	// pruner, take two -- a less naive approach
+	// sample input; sought result: "12345"
+	__m128i const vin = _mm_setr_epi8(
+		' ',
+		'1',
+		' ',
+		' ',
+		'2',
+		' ',
+		' ',
+		'3',
+		' ',
+		' ',
+		' ',
+		' ',
+		'4',
+		'5',
+		' ',
+		' ');
+	// discover non-blanks
+	__m128i const pos = _mm_cmpgt_epi8(vin, _mm_set1_epi8(' '));
+
+	// mark blanks as ones
+	__m128i const spc = _mm_sub_epi8(pos, _mm_set1_epi8(-1));
+
+	// prefix-sum the blanks, right to left
+	__m128i prfsum = spc;
+	prfsum = _mm_add_epi8(prfsum, _mm_srli_si128(prfsum, 1));
+	prfsum = _mm_add_epi8(prfsum, _mm_srli_si128(prfsum, 2));
+	prfsum = _mm_add_epi8(prfsum, _mm_srli_si128(prfsum, 4));
+	prfsum = _mm_add_epi8(prfsum, _mm_srli_si128(prfsum, 8));
+
+	// isolate sequences of blanks and count their individual lengths, right to left, using a prefix max and the above prefix sum
+	__m128i prfmax = _mm_and_si128(pos, prfsum);
+	prfmax = _mm_max_epu8(prfmax, _mm_srli_si128(prfmax, 1));
+	prfmax = _mm_max_epu8(prfmax, _mm_srli_si128(prfmax, 2));
+	prfmax = _mm_max_epu8(prfmax, _mm_srli_si128(prfmax, 4));
+	prfmax = _mm_max_epu8(prfmax, _mm_srli_si128(prfmax, 8));
+	prfmax = _mm_sub_epi8(prfsum, prfmax);
+
+	// add blank counts to a sequential index to get non-blanks index
+	__m128i const index = _mm_add_epi8(_mm_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), prfmax);
+
+	// cap trailing out-of-bounds in the index (non-mandatory)
+	__m128i const indey = _mm_or_si128(index, _mm_cmpgt_epi8(index, _mm_set1_epi8(15)));
+
+	// use the index to fetch all non-blanks from the dictionary
+	__m128i const res = _mm_shuffle_epi8(vin, indey);
+
+	_mm_storeu_si128(reinterpret_cast< __m128i* >(output), res);
+
+	print_uint8x16(pos, true);
+	print_uint8x16(prfsum, true);
+	print_uint8x16(prfmax, true);
+	print_uint8x16(index, true);
+	fprintf(stderr, "%.32s\n", output);
+	return 0;
+
+#endif
+#endif // WIP
 	size_t const rep = size_t(5e7);
 
 	for (size_t i = 0; i < rep; ++i) {
