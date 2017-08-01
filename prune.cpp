@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-uint8_t input[32] __attribute__ ((aligned(16))) = "alabalanica 1234";
+uint8_t input[32] __attribute__ ((aligned(16))) = " 1  2  3    45  ";
 uint8_t output[32] __attribute__ ((aligned(16)));
 static const size_t misalign = 1; // simulate mis-alignment at write
 
@@ -94,7 +94,7 @@ inline void testee00() {
 }
 
 #if __aarch64__
-// ASIMD2 version; in-vector string compaction via permute ops (tbl) using prefix-sum indices
+// sole pruner - ASIMD2 version; filter single blank per every N input chars, N = vector size
 inline void testee01() {
 	uint8x16_t const vinput = vld1q_u8(input);
 	uint8x16_t prfsum = vcleq_u8(vinput, vdupq_n_u8(' '));
@@ -121,6 +121,7 @@ inline void testee01() {
 	// omitted from this test: output ptr needs to be advanced by count of non-blanks
 }
 
+// sole pruner - ASIMD2 version, 32-batch; filter single blank per every N input chars, N = vector size
 inline void testee02() {
 	uint8x16_t const vinput0 = vld1q_u8(input);
 	uint8x16_t const vinput1 = vld1q_u8(input + sizeof(uint8x16_t));
@@ -164,7 +165,7 @@ inline void testee02() {
 }
 
 #elif __SSSE3__
-// SSSE3 version; in-vector string compaction via permute ops (pshufb) using prefix-sum indices
+// sole pruner - SSSE3 version; filter single blank per every N input chars, N = vector size
 inline void testee01() {
 	__m128i const vinput = _mm_load_si128(reinterpret_cast< const __m128i* >(input));
 	__m128i prfsum = _mm_cmplt_epi8(vinput, _mm_set1_epi8(' ' + 1));
@@ -182,6 +183,7 @@ inline void testee01() {
 	// omitted from this test: output ptr needs to be advanced by count of non-blanks
 }
 
+// sole pruner - SSSE3 version, 32-batch; filter single blank per every N input chars, N = vector size
 inline void testee02() {
 	__m128i const vinput0 = _mm_load_si128(reinterpret_cast< const __m128i* >(input));
 	__m128i const vinput1 = _mm_load_si128(reinterpret_cast< const __m128i* >(input) + 1);
@@ -212,28 +214,11 @@ inline void testee02() {
 }
 
 #endif
-int main(int, char**) {
-#if WIP
-#if __SSSE3__
-	// pruner, take two -- a less naive approach
-	// sample input; sought result: "12345"
-	__m128i const vin = _mm_setr_epi8(
-		' ',
-		'1',
-		' ',
-		' ',
-		'2',
-		' ',
-		' ',
-		'3',
-		' ',
-		' ',
-		' ',
-		' ',
-		'4',
-		'5',
-		' ',
-		' ');
+#if __SSE2__
+// pruner semi -- replace blanks with the next non-blank
+inline void testee03() {
+	__m128i const vin = _mm_load_si128(reinterpret_cast< const __m128i* >(input));
+
 	// discover non-blanks
 	__m128i const pos = _mm_cmpgt_epi8(vin, _mm_set1_epi8(' '));
 
@@ -265,21 +250,27 @@ int main(int, char**) {
 	__m128i const res = _mm_shuffle_epi8(vin, indey);
 
 	_mm_storeu_si128(reinterpret_cast< __m128i* >(output), res);
-
-	print_uint8x16(pos, true);
-	print_uint8x16(prfsum, true);
-	print_uint8x16(prfmax, true);
-	print_uint8x16(index, true);
-	fprintf(stderr, "%.32s\n", output);
-	return 0;
+}
 
 #endif
-#endif // WIP
+#if __SSSE3__
+// pruner -- full-fledged; SSSE3 version
+inline void testee04() {
+}
+
+#endif
+int main(int, char**) {
 	size_t const rep = size_t(5e7);
 
 	for (size_t i = 0; i < rep; ++i) {
 
-#if TESTEE == 2
+#if TESTEE == 4
+		testee04();
+
+#elif TESTEE == 3
+		testee03();
+
+#elif TESTEE == 2
 		testee02();
 
 #elif TESTEE == 1
