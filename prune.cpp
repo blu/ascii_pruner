@@ -217,7 +217,7 @@ inline size_t testee03() {
 	__m128i const pos = _mm_cmpgt_epi8(vin, _mm_set1_epi8(' '));
 
 	// mark blanks as ones
-	__m128i const spc = _mm_sub_epi8(pos, _mm_set1_epi8(-1));
+	__m128i const spc = _mm_andnot_si128(pos, _mm_set1_epi8(1));
 
 	// prefix-sum the blanks, right to left
 	__m128i prfsum = spc;
@@ -350,7 +350,7 @@ inline size_t testee04() {
 	// 16-element sorting network: http://pages.ripco.net/~jgamble/nw.html -- 'Best version'
 	// TODO
 
-	return size_t(-1)
+	return size_t(-1);
 }
 
 #endif
