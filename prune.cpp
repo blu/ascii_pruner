@@ -249,9 +249,108 @@ inline size_t testee03() {
 
 #endif
 #if __aarch64__
+// pruner -- full-fledged
+inline size_t testee04() {
+	uint8x16_t const vin = vld1q_u8(input);
+	uint8x16_t const bmask = vcleq_u8(vin, vdupq_n_u8(' '));
+
+	// OR the mask of all blanks with the original index of the vector
+	uint8x16_t const risen = vorrq_u8(bmask, (uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 });
+
+	// 16-element sorting network: http://pages.ripco.net/~jgamble/nw.html -- 'Best version'
+	// TODO: unoptimised, 'prima-vista' code
+	// stage 0
+	uint8x16_t const st0a = vqtbl1q_u8(risen, (uint8x16_t) { 0, 2, 4, 6, 8, 10, 12, 14, });
+	uint8x16_t const st0b = vqtbl1q_u8(risen, (uint8x16_t) { 1, 3, 5, 7, 9, 11, 13, 15, });
+	uint8x16_t const st0min = vminq_u8(st0a, st0b); //  0,  2,  4,  6,  8, 10, 12, 14
+	uint8x16_t const st0max = vmaxq_u8(st0a, st0b); //  1,  3,  5,  7,  9, 11, 13, 15
+
+	// stage 1
+	uint8x16x2_t const st0 = { { st0min, st0max } };
+	uint8x16_t const st1a = vqtbl2q_u8(st0, (uint8x16_t) { 0, 2, 4, 6, 16, 18, 20, 22, });
+	uint8x16_t const st1b = vqtbl2q_u8(st0, (uint8x16_t) { 1, 3, 5, 7, 17, 19, 21, 23, });
+	uint8x16_t const st1min = vminq_u8(st1a, st1b); //  0,  4,  8, 12,  1,  5,  9, 13
+	uint8x16_t const st1max = vmaxq_u8(st1a, st1b); //  2,  6, 10, 14,  3,  7, 11, 15
+
+	// stage 2
+	uint8x16x2_t const st1 = { { st1min, st1max } };
+	uint8x16_t const st2a = vqtbl2q_u8(st1, (uint8x16_t) { 0, 2, 4, 6, 16, 18, 20, 22, });
+	uint8x16_t const st2b = vqtbl2q_u8(st1, (uint8x16_t) { 1, 3, 5, 7, 17, 19, 21, 23, });
+	uint8x16_t const st2min = vminq_u8(st2a, st2b); //  0,  8,  1,  9,  2, 10,  3, 11
+	uint8x16_t const st2max = vmaxq_u8(st2a, st2b); //  4, 12,  5, 13,  6, 14,  7, 15
+
+	// stage 3
+	uint8x16x2_t const st2 = { { st2min, st2max } };
+	uint8x16_t const st3a = vqtbl2q_u8(st2, (uint8x16_t) { 0, 2, 4, 6, 16, 18, 20, 22, });
+	uint8x16_t const st3b = vqtbl2q_u8(st2, (uint8x16_t) { 1, 3, 5, 7, 17, 19, 21, 23, });
+	uint8x16_t const st3min = vminq_u8(st3a, st3b); // 0, 1,  2,  3,  4,  5,  6,  7
+	uint8x16_t const st3max = vmaxq_u8(st3a, st3b); // 8, 9, 10, 11, 12, 13, 14, 15
+
+	// from here on some indices are already done -- freeze them, by keeping them in deterministic positions
+
+	// stage 4; indices done so far: 0, 15
+	uint8x16x2_t const st3 = { { st3min, st3max } };
+	uint8x16_t const st4a = vqtbl2q_u8(st3, (uint8x16_t) {  0,  5,  6,  3, 21,  7, 1,  4, });
+	uint8x16_t const st4b = vqtbl2q_u8(st3, (uint8x16_t) { 23, 18, 17, 20, 22, 19, 2, 16, });
+	uint8x16_t const st4min = vminq_u8(st4a, st4b); // [ 0],  5,  6,  3, 13,  7,  1,  4
+	uint8x16_t const st4max = vmaxq_u8(st4a, st4b); // [15], 10,  9, 12, 14, 11,  2,  8
+
+	// stage 5; done so far: 0, 15; temp frozen: 3, 12
+	uint8x16x2_t const st4 = { { st4min, st4max } };
+	uint8x16_t const st5a = vqtbl2q_u8(st4, (uint8x16_t) {  0,  3, 6, 5, 22, 21, 1, 18, });
+	uint8x16_t const st5b = vqtbl2q_u8(st4, (uint8x16_t) { 16, 19, 7, 4, 23, 20, 2, 17, });
+	uint8x16_t const st5min = vminq_u8(st5a, st5b); // [ 0], [ 3], 1,  7, 2, 11, 5,  9
+	uint8x16_t const st5max = vmaxq_u8(st5a, st5b); // [15], [12], 4, 13, 8, 14, 6, 10
+
+	// stage 6; done so far: 0, 1, 14, 15; temp frozen: 5, 6, 9, 10
+	uint8x16x2_t const st5 = { { st5min, st5max } };
+	uint8x16_t const st6a = vqtbl2q_u8(st5, (uint8x16_t) {  0,  2,  4,  5,  1,  3,  6,  7, });
+	uint8x16_t const st6b = vqtbl2q_u8(st5, (uint8x16_t) { 16, 21, 18, 19, 20, 17, 22, 23, });
+	uint8x16_t const st6min = vminq_u8(st6a, st6b); // [ 0], [ 1], 2, 11, 3,  7, [5], [ 9]
+	uint8x16_t const st6max = vmaxq_u8(st6a, st6b); // [15], [14], 4, 13, 8, 12, [6], [10]
+
+	// stage 7; done so far: 0, 1, 2, 13, 14, 15; temp frozen: 4, 11
+	uint8x16x2_t const st6 = { { st6min, st6max } };
+	uint8x16_t const st7a = vqtbl2q_u8(st6, (uint8x16_t) {  0,  1,  2,  3, 22, 23, 4, 5, });
+	uint8x16_t const st7b = vqtbl2q_u8(st6, (uint8x16_t) { 16, 17, 18, 19, 20, 21, 6, 7, });
+	uint8x16_t const st7min = vminq_u8(st7a, st7b); // [ 0], [ 1], [2], [11], 6, 10, 3, 7
+	uint8x16_t const st7max = vmaxq_u8(st7a, st7b); // [15], [14], [4], [13], 8, 12, 5, 9
+
+	// stage 8; done so far: 0, 1, 2, 13, 14, 15
+	uint8x16x2_t const st7 = { { st7min, st7max } };
+	uint8x16_t const st8a = vqtbl2q_u8(st7, (uint8x16_t) {  0,  1,  2,  6, 22,  7, 23,  3, });
+	uint8x16_t const st8b = vqtbl2q_u8(st7, (uint8x16_t) { 16, 17, 19, 18,  4, 20,  5, 21, });
+	uint8x16_t const st8min = vminq_u8(st8a, st8b); // [ 0], [ 1], [ 2], 3, 5, 7,  9, 11
+	uint8x16_t const st8max = vmaxq_u8(st8a, st8b); // [15], [14], [13], 4, 6, 8, 10, 12
+
+	// stage 9; done so far: 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15
+	uint8x16x2_t const st8 = { { st8min, st8max } };
+	uint8x16_t const st9a = vqtbl2q_u8(st8, (uint8x16_t) {  0,  1,  2,  3, 19,  4, 20, 21, });
+	uint8x16_t const st9b = vqtbl2q_u8(st8, (uint8x16_t) { 16, 17, 18, 23,  7, 22,  5,  6, });
+	uint8x16_t const st9min = vminq_u8(st9a, st9b); // [ 0], [ 1], [ 2], [ 3], [ 4], [ 5], 6, 8
+	uint8x16_t const st9max = vmaxq_u8(st9a, st9b); // [15], [14], [13], [12], [11], [10], 7, 9
+
+	uint8x16x2_t const st9 = { { st9min, st9max } };
+	uint8x16_t const index = vqtbl2q_u8(st9, (uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 22, 7, 23, 21, 20, 19, 18, 17, 16 });
+
+	uint8x16_t const res = vqtbl1q_u8(vin, index);
+	vst1q_u8(output, res);
+	return sizeof(uint8x16_t) + int8_t(vaddvq_u8(bmask));
+}
+
 #elif __SSSE3__
-// pruner -- full-fledged; SSSE3 version
-inline void testee04() {
+// pruner -- full-fledged
+inline size_t testee04() {
+	__m128i const vin = _mm_load_si128(reinterpret_cast< __m128i const* >(input));
+	__m128i const bmask = _mm_cmplt_epi8(vin, _mm_set1_epi8(' ' + 1));
+
+	// OR the mask of all blanks with the original index of the vector
+	__m128i const risen = _mm_or_si128(bmask, _mm_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15));
+
+	// 16-element sorting network: http://pages.ripco.net/~jgamble/nw.html -- 'Best version'
+	// TODO
+
+	return size_t(-1)
 }
 
 #endif
