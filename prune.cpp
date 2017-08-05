@@ -24,7 +24,7 @@ void print_uint8x16(
 
 	fprintf(f, "{ ");
 #define LANE(lane) \
-	const uint8_t s##lane = vgetq_lane_u8(x, lane); \
+	uint8_t const s##lane = vgetq_lane_u8(x, lane); \
 	fprintf(f, "%.3hhu, ", s##lane);
 
 	LANE( 0)
@@ -45,7 +45,34 @@ void print_uint8x16(
 	LANE(14)
 
 #undef LANE
-	const uint8_t last = vgetq_lane_u8(x, 15);
+	uint8_t const last = vgetq_lane_u8(x, 15);
+
+	if (addNewLine)
+		fprintf(f, "%.3hhu }\n", last);
+	else
+		fprintf(f, "%.3hhu }", last);
+}
+
+void print_uint8x8(
+	uint8x8_t const x,
+	bool const addNewLine,
+	FILE* const f = stderr) {
+
+	fprintf(f, "{ ");
+#define LANE(lane) \
+	uint8_t const s##lane = vget_lane_u8(x, lane); \
+	fprintf(f, "%.3hhu, ", s##lane);
+
+	LANE( 0)
+	LANE( 1)
+	LANE( 2)
+	LANE( 3)
+	LANE( 4)
+	LANE( 5)
+	LANE( 6)
+
+#undef LANE
+	uint8_t const last = vget_lane_u8(x, 7);
 
 	if (addNewLine)
 		fprintf(f, "%.3hhu }\n", last);
@@ -249,7 +276,7 @@ inline size_t testee03() {
 
 #endif
 #if __aarch64__
-// pruner -- full-fledged
+// pruner -- full-fledged; q-form (128-bit regs) half-utilized
 inline size_t testee04() {
 	uint8x16_t const vin = vld1q_u8(input);
 	uint8x16_t const bmask = vcleq_u8(vin, vdupq_n_u8(' '));
@@ -258,7 +285,6 @@ inline size_t testee04() {
 	uint8x16_t const risen = vorrq_u8(bmask, (uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 });
 
 	// 16-element sorting network: http://pages.ripco.net/~jgamble/nw.html -- 'Best version'
-	// TODO: unoptimised, 'prima-vista' code
 	// stage 0
 	uint8x16_t const st0a = vqtbl1q_u8(risen, (uint8x16_t) { 0, 2, 4, 6, 8, 10, 12, 14, });
 	uint8x16_t const st0b = vqtbl1q_u8(risen, (uint8x16_t) { 1, 3, 5, 7, 9, 11, 13, 15, });
@@ -338,7 +364,7 @@ inline size_t testee04() {
 	return sizeof(uint8x16_t) + int8_t(vaddvq_u8(bmask));
 }
 
-// 64-bit (d-form) version of testee04
+// d-form (64-bit regs) version of testee04
 inline size_t testee05() {
 	uint8x16_t const vin = vld1q_u8(input);
 	uint8x16_t const bmask = vcleq_u8(vin, vdupq_n_u8(' '));
