@@ -277,6 +277,15 @@ inline size_t testee03() {
 }
 
 #endif
+
+// From here on start the proper pruners. They all implement the following idea:
+//
+//  1. Get the unperturbed index of all elements of a vector, i.e. { 0, 1, 2, 3, 4, 5, 6, 7 } (for an 8-element vector)
+//  2. For all blank lanes in the input ascii vector, raise the corresponding lanes in the index vector to MAX_INT, e.g. { 0, 1, 0xff, 3, 0xff, 0xff, 6, 7 }
+//  3. Sort the resulting index vector in ascending order, e.g. { 0, 1, 3, 6, 7, 0xff, 0xff, 0xff }
+//
+// This is the desired index by which to sample the original input vector. That's all.
+
 #if __aarch64__
 // pruner proper, 16-batch; q-form (128-bit regs) half-utilized
 inline size_t testee04() {
@@ -285,6 +294,8 @@ inline size_t testee04() {
 
 	// OR the mask of all blanks with the original index of the vector
 	uint8x16_t const risen = vorrq_u8(bmask, (uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 });
+
+	// now just sort that 'risen' to get the desired index of all non-blanks in the front, and all blanks in the back
 
 	// 16-element sorting network: http://pages.ripco.net/~jgamble/nw.html -- 'Best version'
 	// stage 0
@@ -374,6 +385,8 @@ inline size_t testee05() {
 	// OR the mask of all blanks with the original index of the vector
 	uint8x16_t const risen = vorrq_u8(bmask, (uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 });
 
+	// now just sort that 'risen' to get the desired index of all non-blanks in the front, and all blanks in the back
+
 	// 16-element sorting network: http://pages.ripco.net/~jgamble/nw.html -- 'Best version'
 	// stage 0
 	uint8x8_t const st0a = vqtbl1_u8(risen, (uint8x8_t) { 0, 2, 4, 6, 8, 10, 12, 14 });
@@ -455,6 +468,60 @@ inline size_t testee05() {
 }
 
 #elif __SSSE3__ && __POPCNT__
+// pruner proper, 16-batch; amd64 cannot properly recreate arm64's testee04, so get creative
+inline size_t testee04() {
+	__m128i const vin = _mm_load_si128(reinterpret_cast< __m128i const* >(input));
+	__m128i const bmask = _mm_cmplt_epi8(vin, _mm_set1_epi8(' ' + 1));
+
+	// OR the mask of all blanks with the original index of the vector
+	__m128i const risen = _mm_or_si128(bmask, _mm_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15));
+
+	// now just sort that 'risen' to get the desired index of all non-blanks in the front, and all blanks in the back;
+	// an observation: we don't need to sort the entire risen index as a whole, we can sort it piece-wise
+
+	// 4-element sorting network: http://pages.ripco.net/~jgamble/nw.html -- 'Best version', 4 clusters of
+	//
+	//  [[0,1],[2,3]]  [[4,5],[6,7]]  [[8,9],[a,b]]  [[c,d],[e,f]]
+	//  [[0,2],[1,3]]  [[4,6],[5,7]]  [[8,a],[9,b]]  [[c,e],[d,f]]
+	//  [[1,2]]        [[5,6]]        [[9,a]]        [[d,e]]
+	//
+
+	__m128i const st0a = _mm_shuffle_epi8(risen, _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st0b = _mm_shuffle_epi8(risen, _mm_setr_epi8(1, 3, 5, 7, 9, 11, 13, 15, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st0min = _mm_min_epu8(st0a, st0b);
+	__m128i const st0max = _mm_max_epu8(st0a, st0b);
+
+	__m128i const st0 = _mm_unpacklo_epi64(st0min, st0max);
+	__m128i const st1a = _mm_shuffle_epi8(st0, _mm_setr_epi8(0, 8, 2, 10, 4, 12, 6, 14, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st1b = _mm_shuffle_epi8(st0, _mm_setr_epi8(1, 9, 3, 11, 5, 13, 7, 15, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st1min = _mm_min_epu8(st1a, st1b); // 0, 1, 4, 5, 8, 9, c, d
+	__m128i const st1max = _mm_max_epu8(st1a, st1b); // 2, 3, 6, 7, a, b, e, f
+
+	__m128i const st2a =                  st1min;
+	__m128i const st2b = _mm_shuffle_epi8(st1max, _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st2min = _mm_min_epu8(st2a, st2b); // [0], 1, [4], 5, [8], 9, [c], d
+	__m128i const st2max = _mm_max_epu8(st2a, st2b); // [3], 2, [7], 6, [b], a, [f], e
+
+	__m128i const st2 = _mm_unpacklo_epi64(st2min, st2max);
+	__m128i const index = _mm_shuffle_epi8(st2, _mm_setr_epi8(0, 1, 9, 8, 2, 3, 11, 10, 4, 5, 13, 12, 6, 7, 15, 14));
+
+	__m128i const res0 = _mm_shuffle_epi8(vin, index);
+	__m128i const res1 = _mm_shuffle_epi32(res0, 0x55);
+	__m128i const res2 = _mm_shuffle_epi32(res0, 0xee);
+	__m128i const res3 = _mm_shuffle_epi32(res0, 0xff);
+
+	uint32_t const bitmask = ~_mm_movemask_epi8(bmask);
+	uint32_t const len0 = _mm_popcnt_u32(bitmask & 0x00f);
+	uint32_t const len1 = _mm_popcnt_u32(bitmask & 0x0ff);
+	uint32_t const len2 = _mm_popcnt_u32(bitmask & 0xfff);
+
+	*reinterpret_cast< uint32_t* >(output)        = _mm_cvtsi128_si32(res0);
+	*reinterpret_cast< uint32_t* >(output + len0) = _mm_cvtsi128_si32(res1);
+	*reinterpret_cast< uint32_t* >(output + len1) = _mm_cvtsi128_si32(res2);
+	*reinterpret_cast< uint32_t* >(output + len2) = _mm_cvtsi128_si32(res3);
+	return sizeof(__m128i) - _mm_popcnt_u32(bitmask);
+}
+
 // pruner proper, 16-batch
 inline size_t testee05() {
 	__m128i const vin = _mm_load_si128(reinterpret_cast< __m128i const* >(input));
@@ -462,6 +529,8 @@ inline size_t testee05() {
 
 	// OR the mask of all blanks with the original index of the vector
 	__m128i const risen = _mm_or_si128(bmask, _mm_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15));
+
+	// now just sort that 'risen' to get the desired index of all non-blanks in the front, and all blanks in the back
 
 	// 16-element sorting network: http://pages.ripco.net/~jgamble/nw.html -- 'Best version'
 	// stage 0

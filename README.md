@@ -329,20 +329,37 @@ $ echo "scale=4; 2710683392 / (5 * 10^7 * 32)" | bc
 ```
 SSSE3 proper version, batch of 16
 ```
-$ clang++-3.5 -Ofast -mssse3 -mpopcnt prune.cpp -DTESTEE=5
+$ g++-4.8 -Ofast -mssse3 -mpopcnt prune.cpp -DTESTEE=4
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 0123456789abc
 
  Performance counter stats for './a.out':
 
-       4878.693256 task-clock (msec)         #    0.999 CPUs utilized
-     6,470,093,033 cycles                    #    1.326 GHz
-     3,957,285,240 instructions              #    0.61  insns per cycle
+       2683.511502 task-clock (msec)         #    0.998 CPUs utilized
+     3,560,562,997 cycles                    #    1.327 GHz
+     2,353,448,901 instructions              #    0.66  insns per cycle
 
-       4.885363501 seconds time elapsed
+       2.687719799 seconds time elapsed
 
-$ echo "scale=4; 6470093033 / (5 * 10^7 * 16)" | bc
-8.0876
+$ echo "scale=4; 3560562997 / (5 * 10^7 * 16)" | bc
+4.4507
+```
+SSSE3 proper version, batch of 16
+```
+$ clang++-3.7 -Ofast -mssse3 -mpopcnt prune.cpp -DTESTEE=4
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+0123456789abc
+
+ Performance counter stats for './a.out':
+
+       2608.381080 task-clock (msec)         #    0.998 CPUs utilized
+     3,462,731,680 cycles                    #    1.328 GHz
+     2,104,783,519 instructions              #    0.61  insns per cycle
+
+       2.612564016 seconds time elapsed
+
+$ echo "scale=4; 3462731680 / (5 * 10^7 * 16)" | bc
+4.3284
 ```
 ---
 MediaTek MT8163 (Cortex-A53) @ 1.50GHz (sans perf)
