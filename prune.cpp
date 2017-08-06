@@ -12,8 +12,10 @@
 #include <stdio.h>
 #include <stdint.h>
 
-uint8_t input[32] __attribute__ ((aligned(16))) = "012345 789abcdef 123456789abcde";
-uint8_t output[32] __attribute__ ((aligned(16)));
+uint8_t input[64] __attribute__ ((aligned(64))) =
+	"012345 6789  abc"
+	"def 123456789abc";
+uint8_t output[64] __attribute__ ((aligned(64)));
 
 // print utility
 #if __aarch64__
@@ -276,7 +278,7 @@ inline size_t testee03() {
 
 #endif
 #if __aarch64__
-// pruner -- full-fledged; q-form (128-bit regs) half-utilized
+// pruner proper, 16-batch; q-form (128-bit regs) half-utilized
 inline size_t testee04() {
 	uint8x16_t const vin = vld1q_u8(input);
 	uint8x16_t const bmask = vcleq_u8(vin, vdupq_n_u8(' '));
@@ -364,7 +366,7 @@ inline size_t testee04() {
 	return sizeof(uint8x16_t) + int8_t(vaddvq_u8(bmask));
 }
 
-// d-form (64-bit regs) version of testee04
+// pruner proper, 16-batch; d-form (64-bit regs) version of testee04
 inline size_t testee05() {
 	uint8x16_t const vin = vld1q_u8(input);
 	uint8x16_t const bmask = vcleq_u8(vin, vdupq_n_u8(' '));
@@ -452,9 +454,9 @@ inline size_t testee05() {
 	return sizeof(uint8x16_t) + int8_t(vaddvq_u8(bmask));
 }
 
-#elif __SSSE3__
-// pruner -- full-fledged
-inline size_t testee04() {
+#elif __SSSE3__ && __POPCNT__
+// pruner proper, 16-batch
+inline size_t testee05() {
 	__m128i const vin = _mm_load_si128(reinterpret_cast< __m128i const* >(input));
 	__m128i const bmask = _mm_cmplt_epi8(vin, _mm_set1_epi8(' ' + 1));
 
@@ -462,9 +464,83 @@ inline size_t testee04() {
 	__m128i const risen = _mm_or_si128(bmask, _mm_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15));
 
 	// 16-element sorting network: http://pages.ripco.net/~jgamble/nw.html -- 'Best version'
-	// TODO
+	// stage 0
+	__m128i const st0a = _mm_shuffle_epi8(risen, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st0b = _mm_shuffle_epi8(risen, _mm_setr_epi8( 1, 3, 5, 7, 9, 11, 13, 15, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st0min = _mm_min_epu8(st0a, st0b); //  0, 2, 4, 6, 8, 10, 12, 14
+	__m128i const st0max = _mm_max_epu8(st0a, st0b); //  1, 3, 5, 7, 9, 11, 13, 15
 
-	return size_t(-1);
+	// stage 1
+	__m128i const st0 = _mm_unpacklo_epi64(st0min, st0max);
+	__m128i const st1a = _mm_shuffle_epi8(st0, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st1b = _mm_shuffle_epi8(st0, _mm_setr_epi8( 1, 3, 5, 7, 9, 11, 13, 15, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st1min = _mm_min_epu8(st1a, st1b); //  0, 4,  8, 12, 1, 5,  9, 13
+	__m128i const st1max = _mm_max_epu8(st1a, st1b); //  2, 6, 10, 14, 3, 7, 11, 15
+
+	// stage 2
+	__m128i const st1 = _mm_unpacklo_epi64(st1min, st1max);
+	__m128i const st2a = _mm_shuffle_epi8(st1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st2b = _mm_shuffle_epi8(st1, _mm_setr_epi8( 1, 3, 5, 7, 9, 11, 13, 15, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st2min = _mm_min_epu8(st2a, st2b); //  0,  8, 1,  9, 2, 10, 3, 11
+	__m128i const st2max = _mm_max_epu8(st2a, st2b); //  4, 12, 5, 13, 6, 14, 7, 15
+
+	// stage 3
+	__m128i const st2 = _mm_unpacklo_epi64(st2min, st2max);
+	__m128i const st3a = _mm_shuffle_epi8(st2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st3b = _mm_shuffle_epi8(st2, _mm_setr_epi8( 1, 3, 5, 7, 9, 11, 13, 15, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st3min = _mm_min_epu8(st3a, st3b); // 0, 1,  2,  3,  4,  5,  6,  7
+	__m128i const st3max = _mm_max_epu8(st3a, st3b); // 8, 9, 10, 11, 12, 13, 14, 15
+
+	// from here on some indices are already done -- freeze them, by keeping them in deterministic positions
+
+	// stage 4; indices done so far: 0, 15
+	__m128i const st3 = _mm_unpacklo_epi64(st3min, st3max);
+	__m128i const st4a = _mm_shuffle_epi8(st3, _mm_setr_epi8( 0,  5, 6,  3, 13,  7, 1, 4, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st4b = _mm_shuffle_epi8(st3, _mm_setr_epi8(15, 10, 9, 12, 14, 11, 2, 8, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st4min = _mm_min_epu8(st4a, st4b); // [ 0],  5,  6,  3, 13,  7,  1,  4
+	__m128i const st4max = _mm_max_epu8(st4a, st4b); // [15], 10,  9, 12, 14, 11,  2,  8
+
+	// stage 5; done so far: 0, 15; temp frozen: 3, 12
+	__m128i const st4 = _mm_unpacklo_epi64(st4min, st4max);
+	__m128i const st5a = _mm_shuffle_epi8(st4, _mm_setr_epi8( 0,  3, 6, 5, 14, 13, 1, 10, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st5b = _mm_shuffle_epi8(st4, _mm_setr_epi8( 8, 11, 7, 4, 15, 12, 2,  9, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st5min = _mm_min_epu8(st5a, st5b); // [ 0], [ 3], 1,  7,  2, 11, 5,  9
+	__m128i const st5max = _mm_max_epu8(st5a, st5b); // [15], [12], 4, 13,  8, 14, 6, 10
+
+	// stage 6; done so far: 0, 1, 14, 15; temp frozen: 5, 6, 9, 10
+	__m128i const st5 = _mm_unpacklo_epi64(st5min, st5max);
+	__m128i const st6a = _mm_shuffle_epi8(st5, _mm_setr_epi8( 0,  2,  4,  5,  1, 3,  6,  7, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st6b = _mm_shuffle_epi8(st5, _mm_setr_epi8( 8, 13, 10, 11, 12, 9, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st6min = _mm_min_epu8(st6a, st6b); // [ 0], [ 1], 2, 11,  3,  7, [5], [ 9]
+	__m128i const st6max = _mm_max_epu8(st6a, st6b); // [15], [14], 4, 13,  8, 12, [6], [10]
+
+	// stage 7; done so far: 0, 1, 2, 13, 14, 15; temp frozen: 4, 11
+	__m128i const st6 = _mm_unpacklo_epi64(st6min, st6max);
+	__m128i const st7a = _mm_shuffle_epi8(st6, _mm_setr_epi8( 0, 1,  2,  3, 14, 15, 4, 5, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st7b = _mm_shuffle_epi8(st6, _mm_setr_epi8( 8, 9, 10, 11, 12, 13, 6, 7, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st7min = _mm_min_epu8(st7a, st7b); // [ 0], [ 1], [2], [11],  6, 10, 3, 7
+	__m128i const st7max = _mm_max_epu8(st7a, st7b); // [15], [14], [4], [13],  8, 12, 5, 9
+
+	// stage 8; done so far: 0, 1, 2, 13, 14, 15
+	__m128i const st7 = _mm_unpacklo_epi64(st7min, st7max);
+	__m128i const st8a = _mm_shuffle_epi8(st7, _mm_setr_epi8( 0, 1,  2,  6, 14,  7, 15,  3, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st8b = _mm_shuffle_epi8(st7, _mm_setr_epi8( 8, 9, 11, 10,  4, 12,  5, 13, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st8min = _mm_min_epu8(st8a, st8b); // [ 0], [ 1], [ 2],  3,  5,  7,  9, 11
+	__m128i const st8max = _mm_max_epu8(st8a, st8b); // [15], [14], [13],  4,  6,  8, 10, 12
+
+	// stage 9; done so far: 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15
+	__m128i const st8 = _mm_unpacklo_epi64(st8min, st8max);
+	__m128i const st9a = _mm_shuffle_epi8(st8, _mm_setr_epi8( 0, 1,  2,  3, 11,  4, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st9b = _mm_shuffle_epi8(st8, _mm_setr_epi8( 8, 9, 10, 15,  7, 14,  5,  6, -1, -1, -1, -1, -1, -1, -1, -1));
+	__m128i const st9min = _mm_min_epu8(st9a, st9b); // [ 0], [ 1], [ 2], [ 3], [ 4], [ 5],  6,  8
+	__m128i const st9max = _mm_max_epu8(st9a, st9b); // [15], [14], [13], [12], [11], [10],  7,  9
+
+	__m128i const st9 = _mm_unpacklo_epi64(st9min, st9max);
+	__m128i const index = _mm_shuffle_epi8(st9, _mm_setr_epi8( 0, 1, 2, 3, 4, 5, 6, 14, 7, 15, 13, 12, 11, 10, 9, 8 ));
+
+	__m128i const res = _mm_shuffle_epi8(vin, index);
+	_mm_storeu_si128(reinterpret_cast< __m128i* >(output), res);
+	return sizeof(__m128i) - _mm_popcnt_u32(_mm_movemask_epi8(bmask));
 }
 
 #endif

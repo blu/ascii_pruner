@@ -293,7 +293,7 @@ alabalanica1234
 $ echo "scale=4; 2858689394 / (5 * 10^7 * 16)" | bc
 3.5733
 ```
-SSSE3 version (batch of 16, misaligned write)
+SSSE3 naive version, batch of 16
 ```
 $ clang++-3.7 prune.cpp -Ofast -mssse3 -mpopcnt -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -310,7 +310,7 @@ alabalanica1234a
 $ echo "scale=4; 1257175899 / (5 * 10^7 * 16)" | bc
 1.5714
 ```
-SSSE3 version (batch of 32, misaligned write)
+SSSE3 naive version, batch of 32
 ```
 $ clang++-3.7 prune.cpp -Ofast -mssse3 -mpopcnt -DTESTEE=2
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -326,6 +326,23 @@ alabalanica1234
 
 $ echo "scale=4; 2710683392 / (5 * 10^7 * 32)" | bc
 1.6941
+```
+SSSE3 proper version, batch of 16
+```
+$ clang++-3.5 -Ofast -mssse3 -mpopcnt prune.cpp -DTESTEE=5
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+0123456789abc
+
+ Performance counter stats for './a.out':
+
+       4878.693256 task-clock (msec)         #    0.999 CPUs utilized
+     6,470,093,033 cycles                    #    1.326 GHz
+     3,957,285,240 instructions              #    0.61  insns per cycle
+
+       4.885363501 seconds time elapsed
+
+$ echo "scale=4; 6470093033 / (5 * 10^7 * 16)" | bc
+8.0876
 ```
 ---
 MediaTek MT8163 (Cortex-A53) @ 1.50GHz (sans perf)
