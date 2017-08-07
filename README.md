@@ -14,6 +14,7 @@ inline void testee00() {
     }
 }
 ```
+Apparently the output string is missing its nil-termination, but that is a trivial operation which does not change the performance characteristics of the code. This holds true for the rest of the routines in this survey.
 
 I ran `testee00` on a bunch amd64 CPUs and one arm64 CPU, using different GCC and Clang compiler versions, always taking the best compiler result. Here are the clocks/character results, computed from `perf -e cycles` divided by the number of processed chars (in our case - 5 * 10^7 * 16), and truncated to the 4th digit after the decimal point:
 
@@ -32,17 +33,17 @@ Interesting, isn’t it - the little ARM (3-decode, 8-issue OoO) actually does b
 
 So, let’s move on to SIMD. Now, I don’t claim to be a seasoned NEON coder, but I get my hands dirty with ARM SIMD occasionally. I will not inline the SIMD routines here since that would choke the reader; instead, the entire testbed and participating test routines can be found in the supplied code.
 
-I took the liberty to change Daniel’s original SSSE3 pruning routine - actually, I used my version for the test. **UPDATE: this algorithm handles at most one blank per 16 chars of input; improved version pending** The reason? I cannot easily take 2^16 * 2^4 = 1MB look-up tables in my code - that would be a major cache thrasher for any scenarios where we don’t just prune ascii streams, but call the routine amids other work. The LUT-less SSSE3 version comes at the price of a tad more computations, but runs entirely off registers, and as you’ll see, the price for dropping the table is not prohibitive even on sheer pruning workloads. Moreover, both the new SSSE3 version and the NEON (ASIMD2) version use the same algorithm now, so the comparison is as direct as physically possible. And lastly, all tests run entirely off L1 cache.
+I took the liberty to change Daniel’s original SSSE3 pruning routine - actually, I used my version for the test. The reason? I cannot easily take 2^16 * 2^4 = 1MB look-up tables in my code - that would be a major cache thrasher for any scenarios where we don’t just prune ascii streams, but call the routine amids other work. The LUT-less SSSE3 version comes at the price of a tad more computations, but runs entirely off registers, and as you’ll see, the price for dropping the table is not prohibitive even on sheer pruning workloads. Moreover, both the new SSSE3 version and the NEON (ASIMD2) version use the same algorithm now, so the comparison is as direct as physically possible. And lastly, all tests run entirely off L1 cache.
 
-| CPU                          | Compiler & codegen flags           | clocks/character |
-| ---------------------------- | ---------------------------------- | ---------------- |
-| Intel Xeon E5-2687W (SNB)    | g++-4.8 -Ofast -mssse3             | .4230            |
-| Intel Xeon E3-1270v2 (IVB)   | g++-5.4 -Ofast -mssse3             | .3774            |
-| Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2          | .3661            |
-| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3         | .3181            |
-| Marvell 8040 (Cortex-A72)    | g++-5.4 -Ofast -mcpu=cortex-a57    | 1.0503           |
+| CPU                          | Compiler & codegen flags            | clocks/character |
+| ---------------------------- | ----------------------------------- | ---------------- |
+| Intel Xeon E5-2687W (SNB)    | clang++-3.9 -Ofast -mssse3 -mpopcnt | .9268            |
+| Intel Xeon E3-1270v2 (IVB)   | clang++-3.7 -Ofast -mssse3 -mpopcnt | .8229            |
+| Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2           |                  |
+| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3          |                  |
+| Marvell 8040 (Cortex-A72)    | g++-5.4 -Ofast -mcpu=cortex-a57     |                  |
 
-Table 2. Performance of `testee01` on desktop-level cores
+Table 2. Performance of `testee04` on desktop-level cores
 
 Note: uarch tuning for A57 passed to the arm64 build since the compiler’s generic scheduler is openly worse in this version when it comes to NEON code, and A57 is a fairly “generic” ARMv8 common denominator when it comes to scheduling.  
 Note: AVX2-128 used for Haswell as it uses the same intrinsics while producing better results than SSSE3.
@@ -64,13 +65,6 @@ Table 3. Performance of `testee00` on entry-level cores
 | MediaTek MT8163 (Cortex-A53) | clang++-3.6 -Ofast -mcpu=cortex-a53                 | 1.7100                   |
 
 Table 4. Performance of `testee01` on entry-level cores
-
-| CPU                          | Compiler & codegen flags                            | clocks/char (batch 32)   |
-| ---------------------------- | --------------------------------------------------- | ------------------------ |
-| AMD C60 (Bobcat)             | clang++-3.7 -Ofast -mssse3 -mpopcnt                 | 1.6941                   |
-| MediaTek MT8163 (Cortex-A53) | clang++-3.6 -Ofast -mcpu=cortex-a53                 | 1.1081                   |
-
-Table 5. Performance of `testee02` on entry-level cores
 
 ---
 Xeon E5-2687W @ 3.10GHz
@@ -146,7 +140,7 @@ alabalanica1234
 $ echo "scale=4; 1294903960 / (5 * 10^7 * 16)" | bc
 1.6186
 ```
-SSSE3 version (batch of 16, misaligned write)
+SSSE3 naive version, 16-batch
 ```
 $ g++-5 -Ofast prune.cpp -mssse3 -mpopcnt -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -162,6 +156,23 @@ alabalanica1234a
 
 $ echo "scale=4; 301931101 / (5 * 10^7 * 16)" | bc
 .3774
+```
+SSSE3 proper version, 16-batch
+```
+$ clang++-3.7 -Ofast prune.cpp -mssse3 -mpopcnt -DTESTEE=4
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+0123456789abc
+
+ Performance counter stats for './a.out':
+
+        412.076982 task-clock (msec)         #    0.998 CPUs utilized
+       658,331,488 cycles                    #    1.598 GHz
+     2,102,394,379 instructions              #    3.19  insns per cycle
+
+       0.412818253 seconds time elapsed
+
+$ echo "scale=4; 658331488 / (5 * 10^7 * 16)" | bc
+.8229
 ```
 ---
 Intel i7-5820K
@@ -183,7 +194,7 @@ alabalanica1234
 $ echo "scale=4; 1204872493 / (5 * 10^7 * 16)" | bc
 1.5060
 ```
-AVX2-128 version (batch of 16, misaligned write)
+AVX2-128 naive version, 16-batch
 ```
 $ clang++-3.9 -Ofast prune.cpp -mavx2 -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -219,7 +230,7 @@ alabalanica1234
 $ echo "scale=4; 1129098820 / (5 * 10^7 * 16)" | bc
 1.4113
 ```
-SSSE3 version (batch of 16, misaligned write)
+SSSE3 naive version, 16-batch
 ```
 $ clang++-4 -Ofast prune.cpp -mssse3 -mpopcnt -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -256,7 +267,7 @@ alabalanica1234
 $ echo "scale=4; 1104405671 / (5 * 10^7 * 16)" | bc
 1.3805
 ```
-ASIMD2 version (batch of 16, misaligned write)
+ASIMD2 naive version, 16-batch
 ```
 $ g++-5 prune.cpp -Ofast -mcpu=cortex-a57 -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -272,23 +283,6 @@ alabalanica1234
 
 $ echo "scale=4; 840305966 / (5 * 10^7 * 16)" | bc
 1.0503
-```
-ASIMD2 version (batch of 32, misaligned write)
-```
-$ clang++-3.7 prune.cpp -Ofast -mcpu=cortex-a57 -DTESTEE=2
-$ perf stat -e task-clock,cycles,instructions -- ./a.out
-alabalanica1234
-
- Performance counter stats for './a.out':
-
-       1140.643640      task-clock (msec)         #    0.999 CPUs utilized
-     1,482,826,308      cycles                    #    1.300 GHz
-     1,504,011,807      instructions              #    1.01  insns per cycle
-
-       1.141241760 seconds time elapsed
-
-$ echo "scale=4; 1482826308 / (5 * 10^7 * 32)" | bc
-.9267
 ```
 ---
 AMD C60 (Bobcat) @ 1.333GHz
@@ -310,7 +304,7 @@ alabalanica1234
 $ echo "scale=4; 2858689394 / (5 * 10^7 * 16)" | bc
 3.5733
 ```
-SSSE3 naive version, batch of 16
+SSSE3 naive version, 16-batch
 ```
 $ clang++-3.7 prune.cpp -Ofast -mssse3 -mpopcnt -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -327,41 +321,7 @@ alabalanica1234a
 $ echo "scale=4; 1257175899 / (5 * 10^7 * 16)" | bc
 1.5714
 ```
-SSSE3 naive version, batch of 32
-```
-$ clang++-3.7 prune.cpp -Ofast -mssse3 -mpopcnt -DTESTEE=2
-$ perf stat -e task-clock,cycles,instructions -- ./a.out
-alabalanica1234
-
- Performance counter stats for './a.out':
-
-       2041.723626 task-clock (msec)         #    0.998 CPUs utilized
-     2,710,683,392 cycles                    #    1.328 GHz
-     2,104,158,536 instructions              #    0.78  insns per cycle
-
-       2.045474862 seconds time elapsed
-
-$ echo "scale=4; 2710683392 / (5 * 10^7 * 32)" | bc
-1.6941
-```
-SSSE3 proper version, batch of 16
-```
-$ g++-4.8 -Ofast -mssse3 -mpopcnt prune.cpp -DTESTEE=4
-$ perf stat -e task-clock,cycles,instructions -- ./a.out
-0123456789abc
-
- Performance counter stats for './a.out':
-
-       2683.511502 task-clock (msec)         #    0.998 CPUs utilized
-     3,560,562,997 cycles                    #    1.327 GHz
-     2,353,448,901 instructions              #    0.66  insns per cycle
-
-       2.687719799 seconds time elapsed
-
-$ echo "scale=4; 3560562997 / (5 * 10^7 * 16)" | bc
-4.4507
-```
-SSSE3 proper version, batch of 16
+SSSE3 proper version, 16-batch
 ```
 $ clang++-3.7 -Ofast -mssse3 -mpopcnt prune.cpp -DTESTEE=4
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -393,7 +353,7 @@ sys     0m0.000s
 $ echo "scale=4; 1.417 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 2.6568
 ```
-ASIMD2 version (batch of 16, misaligned write)
+ASIMD2 naive version, 16-batch
 ```
 $ clang++-3.6 -Ofast prune.cpp -mcpu=cortex-a53 -DTESTEE=1
 $ time ./a.out
@@ -404,16 +364,4 @@ user    0m0.900s
 sys     0m0.000s
 $ echo "scale=4; 0.912 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 1.7100
-```
-ASIMD2 version (batch of 32, misaligned write)
-```
-$ clang++-3.6 prune.cpp -Ofast -mcpu=cortex-a53 -DTESTEE=2
-$ time ./a.out
-alabalanica1234
-
-real    0m1.182s
-user    0m1.170s
-sys     0m0.000s
-$ echo "scale=4; 1.182 * 1.5 * 10^9 / (5 * 10^7 * 32)" | bc
-1.1081
 ```
