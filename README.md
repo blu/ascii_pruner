@@ -92,7 +92,7 @@ alabalanica1234
 $ echo "scale=4; 1309087898 / (5 * 10^7 * 16)" | bc
 1.6363
 ```
-SSSE3 version (batch of 16, misaligned write)
+SSSE3 naive version, 16-batch
 ```
 $ g++-4.8 prune.cpp -Ofast -mssse3 -mpopcnt -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -108,6 +108,23 @@ alabalanica1234a
 
 $ echo "scale=4; 338414215 / (5 * 10^7 * 16)" | bc
 .4230
+```
+SSSE3 proper version, 16-batch
+```
+$ clang++-3.9 -Ofast -mssse3 -mpopcnt prune.cpp -DTESTEE=4
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+0123456789abc
+
+ Performance counter stats for './a.out':
+
+        238.949065      task-clock (msec)         #    0.998 CPUs utilized
+       741,459,257      cycles                    #    3.103 GHz
+     2,102,528,489      instructions              #    2.84  insns per cycle
+
+       0.239405193 seconds time elapsed
+
+$ echo "scale=4; 741459257 / (5 * 10^7 * 16)" | bc
+.9268
 ```
 ---
 Xeon E3-1270v2 @ 1.60GHz

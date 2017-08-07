@@ -519,7 +519,7 @@ inline size_t testee04() {
 	*reinterpret_cast< uint32_t* >(output + len0) = _mm_cvtsi128_si32(res1);
 	*reinterpret_cast< uint32_t* >(output + len1) = _mm_cvtsi128_si32(res2);
 	*reinterpret_cast< uint32_t* >(output + len2) = _mm_cvtsi128_si32(res3);
-	return sizeof(__m128i) - _mm_popcnt_u32(bitmask);
+	return _mm_popcnt_u32(bitmask & 0xffff);
 }
 
 // pruner proper, 16-batch
