@@ -39,8 +39,8 @@ I took the liberty to change Daniel’s original SSSE3 pruning routine - actuall
 | ---------------------------- | ----------------------------------- | ---------------- |
 | Intel Xeon E5-2687W (SNB)    | clang++-3.9 -Ofast -mssse3 -mpopcnt | .9268            |
 | Intel Xeon E3-1270v2 (IVB)   | clang++-3.7 -Ofast -mssse3 -mpopcnt | .8229            |
-| Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2           |                  |
-| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3          |                  |
+| Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2           | .8232            |
+| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3 -mpopcnt |                  |
 | Marvell 8040 (Cortex-A72)    | g++-5.4 -Ofast -mcpu=cortex-a57     |                  |
 
 Table 2. Performance of `testee04` on desktop-level cores
@@ -199,17 +199,34 @@ AVX2-128 naive version, 16-batch
 $ clang++-3.9 -Ofast prune.cpp -mavx2 -DTESTEE=1
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
 alabalanica1234a
- 
+
  Performance counter stats for './a.out':
- 
+
          82.088454      task-clock (msec)         #    0.995 CPUs utilized
        292,925,767      cycles                    #    3.568 GHz
        752,064,811      instructions              #    2.57  insn per cycle
- 
+
        0.082493809 seconds time elapsed
- 
+
 $ echo "scale=4; 292925767 / (5 * 10^7 * 16)" | bc
 .3661
+```
+AVX2-128 proper version, 16-batch
+```
+$ clang++-3.9 -Ofast prune.cpp -mavx2 -DTESTEE=4
+$ perf stat -e task-clock,cycles,instructions -- ./a.out
+0123456789abc
+
+ Performance counter stats for './a.out':
+
+        185.266773      task-clock (msec)         #    0.998 CPUs utilized
+       658,574,857      cycles                    #    3.555 GHz
+     1,652,476,471      instructions              #    2.51  insn per cycle
+
+       0.185700333 seconds time elapsed
+
+$ echo "scale=4; 658574857 / (5 * 10^7 * 16)" | bc
+.8232
 ```
 ---
 AMD Ryzen 7 1700

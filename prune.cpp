@@ -235,8 +235,7 @@ inline size_t testee02() {
 	return sizeof(__m128i) * 2 + bnum0 + bnum1;
 }
 
-#endif
-#if __SSE2__ && __POPCNT__
+#if __POPCNT__
 // pruner semi, 16-batch; replace blanks with the next non-blank, cutting off trailing blanks from the batch
 // example: "1234 678  " -> "12346678"
 inline size_t testee03() {
@@ -277,10 +276,10 @@ inline size_t testee03() {
 }
 
 #endif
-
+#endif
 // From here on start the proper pruners. They all implement the following idea:
 //
-//  1. Get the unperturbed index of all elements of a vector, i.e. { 0, 1, 2, 3, 4, 5, 6, 7 } (for an 8-element vector)
+//  1. Get the unperturbed index of all elements of a vector, e.g. { 0, 1, 2, 3, 4, 5, 6, 7 } for an 8-element vector
 //  2. For all blank lanes in the input ascii vector, raise the corresponding lanes in the index vector to MAX_INT, e.g. { 0, 1, 0xff, 3, 0xff, 0xff, 6, 7 }
 //  3. Sort the resulting index vector in ascending order, e.g. { 0, 1, 3, 6, 7, 0xff, 0xff, 0xff }
 //
