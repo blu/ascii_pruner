@@ -38,7 +38,7 @@ I took the liberty to change Daniel’s original SSSE3 pruning routine - actuall
 | CPU                          | Compiler & codegen flags            | clocks/character |
 | ---------------------------- | ----------------------------------- | ---------------- |
 | Intel Xeon E5-2687W (SNB)    | clang++-3.9 -Ofast -mssse3 -mpopcnt | .9268            |
-| Intel Xeon E3-1270v2 (IVB)   | clang++-3.7 -Ofast -mssse3 -mpopcnt | .8229            |
+| Intel Xeon E3-1270v2 (IVB)   | clang++-3.7 -Ofast -mssse3 -mpopcnt | .8223            |
 | Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2           | .8232            |
 | AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3 -mpopcnt |                  |
 | Marvell 8040 (Cortex-A72)    | g++-5.4 -Ofast -mcpu=cortex-a57     |                  |
@@ -52,19 +52,21 @@ As you see, the per-clock efficiency advantage is 2.5x for Sandy Bridge and 2.8x
 
 Bonus material: same test on entry-level arm64 and amd64 CPUs:
 
-| CPU                          | Compiler & codegen flags                            | clocks/char (scalar)     |
-| ---------------------------- | --------------------------------------------------- | ------------------------ |
-| AMD C60 (Bobcat)             | g++-4.8 -Ofast                                      | 3.5733                   |
-| MediaTek MT8163 (Cortex-A53) | clang++-3.6 -Ofast -mcpu=cortex-a53                 | 2.6568                   |
+| CPU                          | Compiler & codegen flags                            | clocks/character |
+| ---------------------------- | --------------------------------------------------- | ---------------- |
+| AMD C60 (Bobcat)             | g++-4.8 -Ofast                                      | 3.5733           |
+| MediaTek MT8163 (Cortex-A53) | clang++-3.6 -Ofast -mcpu=cortex-a53                 | 2.6568           |
 
 Table 3. Performance of `testee00` on entry-level cores
 
-| CPU                          | Compiler & codegen flags                            | clocks/char (batch 16)   |
-| ---------------------------- | --------------------------------------------------- | ------------------------ |
-| AMD C60 (Bobcat)             | clang++-3.7 -Ofast -mssse3 -mpopcnt                 | 1.5714                   |
-| MediaTek MT8163 (Cortex-A53) | clang++-3.6 -Ofast -mcpu=cortex-a53                 | 1.7100                   |
+| CPU                          | Compiler & codegen flags                            | clocks/character |
+| ---------------------------- | --------------------------------------------------- | ---------------- |
+| AMD C60 (Bobcat)             | clang++-3.7 -Ofast -mssse3 -mpopcnt                 | 4.3284 [^1]      |
+| MediaTek MT8163 (Cortex-A53) | clang++-3.8 -Ofast -mcpu=cortex-a53                 | 2.0850           |
 
-Table 4. Performance of `testee01` on entry-level cores
+Table 4. Performance of `testee04` on entry-level cores
+
+[^1]: Bobcat (btver1) experiences Death by popcnt^tm^ here; Jaguar (btver2) does not suffer from that.  
 
 ---
 Xeon E5-2687W @ 3.10GHz
@@ -86,24 +88,7 @@ alabalanica1234
 $ echo "scale=4; 1309087898 / (5 * 10^7 * 16)" | bc
 1.6363
 ```
-SSSE3 naive version, 16-batch
-```
-$ g++-4.8 prune.cpp -Ofast -mssse3 -mpopcnt -DTESTEE=1
-$ perf stat -e task-clock,cycles,instructions -- ./a.out
-alabalanica1234a
-
- Performance counter stats for './a.out':
-
-        109.063426      task-clock (msec)         #    0.997 CPUs utilized
-       338,414,215      cycles                    #    3.103 GHz
-     1,052,118,398      instructions              #    3.11  insns per cycle
-
-       0.109422808 seconds time elapsed
-
-$ echo "scale=4; 338414215 / (5 * 10^7 * 16)" | bc
-.4230
-```
-SSSE3 proper version, 16-batch
+SSSE3 version, 16-batch
 ```
 $ clang++-3.9 -Ofast -mssse3 -mpopcnt prune.cpp -DTESTEE=4
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -140,24 +125,7 @@ alabalanica1234
 $ echo "scale=4; 1294903960 / (5 * 10^7 * 16)" | bc
 1.6186
 ```
-SSSE3 naive version, 16-batch
-```
-$ g++-5 -Ofast prune.cpp -mssse3 -mpopcnt -DTESTEE=1
-$ perf stat -e task-clock,cycles,instructions -- ./a.out
-alabalanica1234a
-
- Performance counter stats for './a.out':
-
-        188.995814 task-clock (msec)         #    0.997 CPUs utilized
-       301,931,101 cycles                    #    1.598 GHz
-     1,050,607,539 instructions              #    3.48  insns per cycle
-
-       0.189536527 seconds time elapsed
-
-$ echo "scale=4; 301931101 / (5 * 10^7 * 16)" | bc
-.3774
-```
-SSSE3 proper version, 16-batch
+SSSE3 version, 16-batch
 ```
 $ clang++-3.7 -Ofast prune.cpp -mssse3 -mpopcnt -DTESTEE=4
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -165,14 +133,14 @@ $ perf stat -e task-clock,cycles,instructions -- ./a.out
 
  Performance counter stats for './a.out':
 
-        412.076982 task-clock (msec)         #    0.998 CPUs utilized
-       658,331,488 cycles                    #    1.598 GHz
-     2,102,394,379 instructions              #    3.19  insns per cycle
+        411.788221 task-clock (msec)         #    0.998 CPUs utilized
+       657,871,749 cycles                    #    1.598 GHz
+     2,102,394,157 instructions              #    3.20  insns per cycle
 
-       0.412818253 seconds time elapsed
+       0.412536582 seconds time elapsed
 
-$ echo "scale=4; 658331488 / (5 * 10^7 * 16)" | bc
-.8229
+$ echo "scale=4; 657871749 / (5 * 10^7 * 16)" | bc
+.8223
 ```
 ---
 Intel i7-5820K
@@ -194,24 +162,7 @@ alabalanica1234
 $ echo "scale=4; 1204872493 / (5 * 10^7 * 16)" | bc
 1.5060
 ```
-AVX2-128 naive version, 16-batch
-```
-$ clang++-3.9 -Ofast prune.cpp -mavx2 -DTESTEE=1
-$ perf stat -e task-clock,cycles,instructions -- ./a.out
-alabalanica1234a
-
- Performance counter stats for './a.out':
-
-         82.088454      task-clock (msec)         #    0.995 CPUs utilized
-       292,925,767      cycles                    #    3.568 GHz
-       752,064,811      instructions              #    2.57  insn per cycle
-
-       0.082493809 seconds time elapsed
-
-$ echo "scale=4; 292925767 / (5 * 10^7 * 16)" | bc
-.3661
-```
-AVX2-128 proper version, 16-batch
+AVX2-128 version, 16-batch
 ```
 $ clang++-3.9 -Ofast prune.cpp -mavx2 -DTESTEE=4
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -321,24 +272,7 @@ alabalanica1234
 $ echo "scale=4; 2858689394 / (5 * 10^7 * 16)" | bc
 3.5733
 ```
-SSSE3 naive version, 16-batch
-```
-$ clang++-3.7 prune.cpp -Ofast -mssse3 -mpopcnt -DTESTEE=1
-$ perf stat -e task-clock,cycles,instructions -- ./a.out
-alabalanica1234a
-
- Performance counter stats for './a.out':
-
-        946.291835 task-clock (msec)         #    0.997 CPUs utilized
-     1,257,175,899 cycles                    #    1.329 GHz
-     1,002,897,072 instructions              #    0.80  insns per cycle
-
-       0.948854740 seconds time elapsed
-
-$ echo "scale=4; 1257175899 / (5 * 10^7 * 16)" | bc
-1.5714
-```
-SSSE3 proper version, 16-batch
+SSSE3 version, 16-batch
 ```
 $ clang++-3.7 -Ofast -mssse3 -mpopcnt prune.cpp -DTESTEE=4
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
@@ -370,15 +304,15 @@ sys     0m0.000s
 $ echo "scale=4; 1.417 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 2.6568
 ```
-ASIMD2 naive version, 16-batch
+ASIMD2 version, 16-batch
 ```
-$ clang++-3.6 -Ofast prune.cpp -mcpu=cortex-a53 -DTESTEE=1
+$ clang++-3.8 -Ofast prune.cpp -mcpu=cortex-a53 -DTESTEE=6
 $ time ./a.out
-alabalanica1234
+0123456789abc
 
-real    0m0.912s
-user    0m0.900s
+real    0m1.112s
+user    0m1.100s
 sys     0m0.000s
-$ echo "scale=4; 0.912 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
-1.7100
+$ echo "scale=4; 1.112 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
+2.0850
 ```
