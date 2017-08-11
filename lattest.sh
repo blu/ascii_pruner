@@ -10,7 +10,7 @@ if [ -z `which bc` ]; then
 fi
 
 CFLAGS=(
-	-Ofast
+	-O3
 	-fno-rtti
 	-fno-exceptions
 	-fstrict-aliasing
