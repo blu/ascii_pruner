@@ -521,6 +521,78 @@ inline size_t testee06() {
 	return len0 + len1 + len2 + len3;
 }
 
+inline size_t testee07() {
+	uint8x16_t const vin0 = vld1q_u8(input);
+	uint8x16_t const vin1 = vld1q_u8(input + sizeof(uint8x16_t));
+	uint8x16_t const bmask0 = vcleq_u8(vin0, vdupq_n_u8(' '));
+	uint8x16_t const bmask1 = vcleq_u8(vin1, vdupq_n_u8(' '));
+
+	// get the count of non-blanks for each 4-batch
+	uint8x16_t const cmask0 = vaddq_u8(bmask0, vdupq_n_u8(1));
+	uint8x16_t const cmask1 = vaddq_u8(bmask1, vdupq_n_u8(1));
+	uint8x16_t const lena = vpaddq_u8(cmask0, cmask1);
+	uint8x16_t const lenb = vpaddq_u8(lena, lena);
+
+	size_t const len0 = vgetq_lane_u8(lenb, 0);
+	size_t const len1 = vgetq_lane_u8(lenb, 1);
+	size_t const len2 = vgetq_lane_u8(lenb, 2);
+	size_t const len3 = vgetq_lane_u8(lenb, 3);
+	size_t const len4 = vgetq_lane_u8(lenb, 4);
+	size_t const len5 = vgetq_lane_u8(lenb, 5);
+	size_t const len6 = vgetq_lane_u8(lenb, 6);
+	size_t const len7 = vgetq_lane_u8(lenb, 7);
+
+	// OR the mask of all blanks with the original index of the vector
+	uint8x16_t const risen0 = vorrq_u8(bmask0, (uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 });
+	uint8x16_t const risen1 = vorrq_u8(bmask1, (uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 });
+
+	// now just sort that 'risen' to get the desired index of all non-blanks in the front, and all blanks in the back;
+	// an observation: we don't need to sort the entire risen index as a whole, we can sort it piece-wise
+
+	// 4-element sorting network: http://pages.ripco.net/~jgamble/nw.html -- 'Best version', 4 clusters of
+	//
+	//  [[0,1],[2,3]]  [[4,5],[6,7]]  [[8,9],[a,b]]  [[c,d],[e,f]]
+	//  [[0,2],[1,3]]  [[4,6],[5,7]]  [[8,a],[9,b]]  [[c,e],[d,f]]
+	//  [[1,2]]        [[5,6]]        [[9,a]]        [[d,e]]
+	//
+
+	uint8x16_t const st0a = vuzp1q_u8(risen0, risen1);
+	uint8x16_t const st0b = vuzp2q_u8(risen0, risen1);
+	uint8x16_t const st0min = vminq_u8(st0a, st0b); // 0, 2, 4, 6, 8, a, c, e
+	uint8x16_t const st0max = vmaxq_u8(st0a, st0b); // 1, 3, 5, 7, 9, b, d, f
+
+	uint8x16_t const st1a = vtrn1q_u8(st0min, st0max);
+	uint8x16_t const st1b = vtrn2q_u8(st0min, st0max);
+	uint8x16_t const st1min = vminq_u8(st1a, st1b); // 0, 1, 4, 5, 8, 9, c, d
+	uint8x16_t const st1max = vmaxq_u8(st1a, st1b); // 2, 3, 6, 7, a, b, e, f
+
+	uint8x16_t const st2a =            st1min;
+	uint8x16_t const st2b = vrev16q_u8(st1max);
+	uint8x16_t const st2min = vminq_u8(st2a, st2b); // [0], 1, [4], 5, [8], 9, [c], d
+	uint8x16_t const st2max = vmaxq_u8(st2a, st2b); // [3], 2, [7], 6, [b], a, [f], e
+
+	uint16x8_t const stx = vreinterpretq_u16_u8(           st2min );
+	uint16x8_t const sty = vreinterpretq_u16_u8(vrev16q_u8(st2max));
+
+	uint8x16_t const index0 = vreinterpretq_u8_u16(vzip1q_u16(stx, sty));
+	uint8x16_t const index1 = vreinterpretq_u8_u16(vzip2q_u16(stx, sty));
+
+	uint8x16_t const res0 = vqtbl1q_u8(vin0, index0);
+	uint8x16_t const res1 = vqtbl1q_u8(vin1, index1);
+
+	*reinterpret_cast< uint32_t* >(output)                                                  = vgetq_lane_u32(vreinterpretq_u32_u8(res0), 0);
+	*reinterpret_cast< uint32_t* >(output + len0)                                           = vgetq_lane_u32(vreinterpretq_u32_u8(res0), 1);
+	*reinterpret_cast< uint32_t* >(output + len0 + len1)                                    = vgetq_lane_u32(vreinterpretq_u32_u8(res0), 2);
+	*reinterpret_cast< uint32_t* >(output + len0 + len1 + len2)                             = vgetq_lane_u32(vreinterpretq_u32_u8(res0), 3);
+
+	*reinterpret_cast< uint32_t* >(output + len0 + len1 + len2 + len3)                      = vgetq_lane_u32(vreinterpretq_u32_u8(res1), 0);
+	*reinterpret_cast< uint32_t* >(output + len0 + len1 + len2 + len3 + len4)               = vgetq_lane_u32(vreinterpretq_u32_u8(res1), 1);
+	*reinterpret_cast< uint32_t* >(output + len0 + len1 + len2 + len3 + len4 + len5)        = vgetq_lane_u32(vreinterpretq_u32_u8(res1), 2);
+	*reinterpret_cast< uint32_t* >(output + len0 + len1 + len2 + len3 + len4 + len5 + len6) = vgetq_lane_u32(vreinterpretq_u32_u8(res1), 3);
+
+	return len0 + len1 + len2 + len3 + len4 + len5 + len6 + len7;
+}
+
 #elif __SSSE3__ && __POPCNT__
 // pruner proper, 16-batch; amd64 cannot properly recreate arm64's testee04, so get creative
 inline size_t testee04() {
@@ -672,7 +744,10 @@ int main(int, char**) {
 
 	for (size_t i = 0; i < rep; ++i) {
 
-#if TESTEE == 6
+#if TESTEE == 7
+		testee07();
+
+#elif TESTEE == 6
 		testee06();
 
 #elif TESTEE == 5
