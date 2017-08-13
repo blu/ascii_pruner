@@ -521,6 +521,7 @@ inline size_t testee06() {
 	return len0 + len1 + len2 + len3;
 }
 
+// pruner proper, 32-batch; wider version of testee06
 inline size_t testee07() {
 	uint8x16_t const vin0 = vld1q_u8(input);
 	uint8x16_t const vin1 = vld1q_u8(input + sizeof(uint8x16_t));
@@ -580,6 +581,7 @@ inline size_t testee07() {
 	uint8x16_t const res0 = vqtbl1q_u8(vin0, index0);
 	uint8x16_t const res1 = vqtbl1q_u8(vin1, index1);
 
+	// note: following len cascade is a prime candidate for implementation via prefix sum, but so far the scalar additions pipeline well
 	*reinterpret_cast< uint32_t* >(output)                                                  = vgetq_lane_u32(vreinterpretq_u32_u8(res0), 0);
 	*reinterpret_cast< uint32_t* >(output + len0)                                           = vgetq_lane_u32(vreinterpretq_u32_u8(res0), 1);
 	*reinterpret_cast< uint32_t* >(output + len0 + len1)                                    = vgetq_lane_u32(vreinterpretq_u32_u8(res0), 2);

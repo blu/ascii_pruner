@@ -316,3 +316,14 @@ sys     0m0.000s
 $ echo "scale=4; 1.112 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 2.0850
 ```
+ASIMD2 version, 32-batch
+```
+$ clang++-3.8 -Ofast prune.cpp -mcpu=cortex-a53 -DTESTEE=7
+$ time ./a.out
+0123456789abcdef123456789abc
+
+real    0m1.553s
+user    0m1.540s
+sys     0m0.000s
+$ echo "scale=4; 1.553 * 1.5 * 10^9 / (5 * 10^7 * 32)" | bc
+1.4559
