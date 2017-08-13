@@ -40,8 +40,8 @@ I took the liberty to change Daniel’s original SSSE3 pruning routine - actuall
 | Intel Xeon E5-2687W (SNB)    | clang++-3.9 -Ofast -mssse3 -mpopcnt | .9268            |
 | Intel Xeon E3-1270v2 (IVB)   | clang++-3.7 -Ofast -mssse3 -mpopcnt | .8223            |
 | Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2           | .8232            |
-| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3 -mpopcnt |                  |
-| Marvell 8040 (Cortex-A72)    | g++-5.4 -Ofast -mcpu=cortex-a57     |                  |
+| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3 -mpopcnt | TBD              |
+| Marvell 8040 (Cortex-A72)    |                                     | TBD              |
 
 Table 2. Performance of `testee04` on desktop-level cores
 
@@ -66,7 +66,16 @@ Table 3. Performance of `testee00` on entry-level cores
 
 Table 4. Performance of `testee04` on entry-level cores
 
-[^1]: Bobcat (btver1) experiences Death by popcnt^tm^ here; Jaguar (btver2) does not suffer from that.  
+[^1]: Bobcat (btver1) experiences Death by popcnt^tm^ here; Jaguar (btver2) does not suffer from that, but is hard to get ahold of.  
+
+And going wider, from 16-barch to 32-batch:
+
+| CPU                          | Compiler & codegen flags                            | clocks/character |
+| ---------------------------- | --------------------------------------------------- | ---------------- |
+| AMD C60 (Bobcat)             |                                                     | TBD              |
+| MediaTek MT8163 (Cortex-A53) | clang++-3.8 -Ofast -mcpu=cortex-a53                 | 1.4559           |
+
+Table 4. Performance of `testee07` on entry-level cores
 
 ---
 Xeon E5-2687W @ 3.10GHz
@@ -327,3 +336,4 @@ user    0m1.540s
 sys     0m0.000s
 $ echo "scale=4; 1.553 * 1.5 * 10^9 / (5 * 10^7 * 32)" | bc
 1.4559
+```
