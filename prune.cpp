@@ -531,6 +531,8 @@ inline size_t testee07() {
 	// get the count of non-blanks for each 4-batch
 	uint8x16_t const cmask0 = vaddq_u8(bmask0, vdupq_n_u8(1));
 	uint8x16_t const cmask1 = vaddq_u8(bmask1, vdupq_n_u8(1));
+
+#if SAME_LATENCY_Q_AND_D
 	uint8x16_t const lena = vpaddq_u8(cmask0, cmask1);
 	uint8x16_t const lenb = vpaddq_u8(lena, lena);
 
@@ -543,6 +545,22 @@ inline size_t testee07() {
 	size_t const len6 = vgetq_lane_u8(lenb, 6);
 	size_t const len7 = vgetq_lane_u8(lenb, 7);
 
+#else // when q-form of the instruction comes at extra latency (e.g. A72) use d-form instead, doubling the op count but utilizing co-issue for a net reduced latency
+	uint8x8_t const lena0 = vpadd_u8(vget_low_u8(cmask0), vget_high_u8(cmask0));
+	uint8x8_t const lena1 = vpadd_u8(vget_low_u8(cmask1), vget_high_u8(cmask1));
+	uint8x8_t const lenb0 = vpadd_u8(lena0, lena0);
+	uint8x8_t const lenb1 = vpadd_u8(lena1, lena1);
+
+	size_t const len0 = vget_lane_u8(lenb0, 0);
+	size_t const len1 = vget_lane_u8(lenb0, 1);
+	size_t const len2 = vget_lane_u8(lenb0, 2);
+	size_t const len3 = vget_lane_u8(lenb0, 3);
+	size_t const len4 = vget_lane_u8(lenb1, 0);
+	size_t const len5 = vget_lane_u8(lenb1, 1);
+	size_t const len6 = vget_lane_u8(lenb1, 2);
+	size_t const len7 = vget_lane_u8(lenb1, 3);
+
+#endif
 	// OR the mask of all blanks with the original index of the vector
 	uint8x16_t const risen0 = vorrq_u8(bmask0, (uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 });
 	uint8x16_t const risen1 = vorrq_u8(bmask1, (uint8x16_t) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 });
