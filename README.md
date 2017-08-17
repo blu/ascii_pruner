@@ -76,7 +76,7 @@ Going wider, from 16-barch to 32-batch:
 | AMD C60 (Bobcat)             |                                                     | TODO             |
 | MediaTek MT8163 (Cortex-A53) | clang++-3.8 -Ofast -mcpu=cortex-a53                 | 1.4559           |
 
-Table 4. Performance of `testee07` on entry-level cores
+Table 5. Performance of `testee07` on entry-level cores
 
 Surprisingly enough, the per-clock efficiency of A72 and A53 is nearly identical on this test. But don't let this fool us into thinking that the integer SIMD pipelines of the two uarchs are identical - that is not the case at all, and the close performance in this scenario is a mere happenensance. This is demonstrated by the fact testee07 has divergent tuning for A72/A57, on one hand, and for A53 on the other.
 
