@@ -39,17 +39,19 @@ I took the liberty to change Daniel’s original SSSE3 pruning routine - actuall
 | ---------------------------- | ----------------------------------- | ---------------- |
 | Intel Xeon E5-2687W (SNB)    | clang++-3.9 -Ofast -mssse3 -mpopcnt | .9268            |
 | Intel Xeon E3-1270v2 (IVB)   | clang++-3.7 -Ofast -mssse3 -mpopcnt | .8223            |
-| Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2           | .8232 [^1]       |
-| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3 -mpopcnt | TBD              |
-| Marvell 8040 (Cortex-A72)    |                                     | TBD              |
+| Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2           | .8232  [^1]      |
+| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3 -mpopcnt | .6671  [^2]      |
+| Marvell 8040 (Cortex-A72)    | clang++-3.6 -Ofast -mcpu=cortex-a57 | 1.4603 [^3]      |
 
 Table 2. Performance of `testee04` on desktop-level cores
 
-[^1]: AVX2-128 used for Haswell as it uses the same intrinsics while producing better results than SSSE3.  
+[^1]: AVX2-128 used for Haswell, as the same intrinsics work with the newer target, while producing better results than SSSE3.  
+[^2]: SSSE3 yield significantly better IPC than AVX2 on Ryzen, so that the overall performance of SSSE3 code is better, despite the increased instruction count.  
+[^3]: Twice-wider (32-batch) version 'testee07' used here; that still proves insufficient to fully counter the pipeline bubbles brought about by A72's ASIMD latencies.
 
-As you see, the per-clock efficiency advantage is 2.5x for Sandy Bridge and 2.8x for Ivy Bridge, respectively - cores that at the same (or similar) fabnode would be 4x the area of the A72. So things don’t look so bad for the ARM chips after all, even though ARM's SIMD does not scale nearly as good as Intel's in this scenario, which appears to be an uarch issue with A72.
+As you see, the per-clock efficiency advantage is approx. 2x for the desktop amd64 cores - cores that at the same (or similar) fabnode would be 4x the area of the A72. That said, the employed SIMD algorithm does not perform well on A72; actually, A72's SIMD does not scale at all, let alone nearly as good as Intel's or AMD's, with this algorithm. This appears to be due to an uarch issue with A72 - its SIMD exhibits high latencies for the permutation ops employed by our algorithm. As a result, the scalar version performs better than the 32-wide SIMD version! As we will see below, that is not the case with other ARMv8 uarchs, though.
 
-Bonus material: same test on entry-level arm64 and amd64 CPUs:
+Same test on entry-level arm64 and amd64 CPUs:
 
 | CPU                          | Compiler & codegen flags                            | clocks/character |
 | ---------------------------- | --------------------------------------------------- | ---------------- |
@@ -65,16 +67,18 @@ Table 3. Performance of `testee00` on entry-level cores
 
 Table 4. Performance of `testee04` on entry-level cores
 
-[^1]: Bobcat (btver1) experiences Death by popcnt^tm^ here; Jaguar (btver2) does not suffer from that, but is hard to get ahold of.  
+[^1]: Bobcat (btver1) experiences Death by popcnt^tm^ here; Jaguar (btver2) does not suffer from that, but part is hard to get ahold of.
 
-And going wider, from 16-barch to 32-batch:
+Going wider, from 16-barch to 32-batch:
 
 | CPU                          | Compiler & codegen flags                            | clocks/character |
 | ---------------------------- | --------------------------------------------------- | ---------------- |
-| AMD C60 (Bobcat)             |                                                     | TBD              |
+| AMD C60 (Bobcat)             |                                                     | TODO             |
 | MediaTek MT8163 (Cortex-A53) | clang++-3.8 -Ofast -mcpu=cortex-a53                 | 1.4559           |
 
 Table 4. Performance of `testee07` on entry-level cores
+
+Surprisingly enough, the per-clock efficiency of A72 and A53 are nearly identical on this test. But don't let this fool us into thinking that the integer SIMD pipelines of the two uarchs are identical - that is not the case at all, and the close performance in this scenario is a mere happenensance. This is demonstrated by the fact testee07 has divergent tuning for A72/A57, on one hand, and for A53 on the other.
 
 ---
 Xeon E5-2687W @ 3.10GHz
@@ -206,22 +210,22 @@ alabalanica1234
 $ echo "scale=4; 1129098820 / (5 * 10^7 * 16)" | bc
 1.4113
 ```
-SSSE3 naive version, 16-batch
+SSSE3 version, 16-batch
 ```
-$ clang++-4 -Ofast prune.cpp -mssse3 -mpopcnt -DTESTEE=1
+$ clang++-4 -Ofast prune.cpp -mssse3 -mpopcnt -DTESTEE=4
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
-alabalanica1234a
+0123456789abc
 
  Performance counter stats for './a.out':
 
-         80,264700      task-clock:u (msec)       #    0,997 CPUs utilized
-         254557232      cycles:u                  #    3,171 GHz
-        1002124741      instructions:u            #    3,94  insn per cycle
+        168,212672      task-clock:u (msec)       #    0,999 CPUs utilized
+         533680965      cycles:u                  #    3,173 GHz
+        2102126854      instructions:u            #    3,94  insn per cycle
 
-       0,080469883 seconds time elapsed
+       0,168401579 seconds time elapsed
 
-$ echo "scale=4; 254557232 / (5 * 10^7 * 16)" | bc
-.3181
+$ echo "scale=4; 533680965 / (5 * 10^7 * 16)" | bc
+.6671
 ```
 ---
 Marvell ARMADA 8040 (Cortex-A72) @ 1.30GHz
@@ -243,22 +247,22 @@ alabalanica1234
 $ echo "scale=4; 1104405671 / (5 * 10^7 * 16)" | bc
 1.3805
 ```
-ASIMD2 naive version, 16-batch
+ASIMD2 version, 32-batch
 ```
-$ g++-5 prune.cpp -Ofast -mcpu=cortex-a57 -DTESTEE=1
+$ clang++-3.6 prune.cpp -Ofast -mcpu=cortex-a57 -DTESTEE=7
 $ perf stat -e task-clock,cycles,instructions -- ./a.out
-alabalanica1234
+0123456789abcdef123456789abc
 
  Performance counter stats for './a.out':
 
-        646.394560      task-clock (msec)         #    0.999 CPUs utilized
-       840,305,966      cycles                    #    1.300 GHz
-       801,000,092      instructions              #    0.95  insns per cycle
+       1797.414520      task-clock (msec)         #    1.000 CPUs utilized
+     2,336,626,281      cycles                    #    1.300 GHz
+     2,954,747,281      instructions              #    1.26  insns per cycle
 
-       0.646946289 seconds time elapsed
+       1.798039048 seconds time elapsed
 
-$ echo "scale=4; 840305966 / (5 * 10^7 * 16)" | bc
-1.0503
+$ echo "scale=4; 2336626281 / (5 * 10^7 * 32)" | bc
+1.4603
 ```
 ---
 AMD C60 (Bobcat) @ 1.333GHz
@@ -326,7 +330,7 @@ $ echo "scale=4; 1.112 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 ```
 ASIMD2 version, 32-batch
 ```
-$ clang++-3.8 -Ofast prune.cpp -mcpu=cortex-a53 -DTESTEE=7
+$ clang++-3.8 -Ofast prune.cpp -mcpu=cortex-a53 -DTESTEE=7 -DSAME_LATENCY_Q_AND_D
 $ time ./a.out
 0123456789abcdef123456789abc
 
