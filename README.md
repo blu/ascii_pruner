@@ -78,7 +78,7 @@ Going wider, from 16-barch to 32-batch:
 
 Table 4. Performance of `testee07` on entry-level cores
 
-Surprisingly enough, the per-clock efficiency of A72 and A53 are nearly identical on this test. But don't let this fool us into thinking that the integer SIMD pipelines of the two uarchs are identical - that is not the case at all, and the close performance in this scenario is a mere happenensance. This is demonstrated by the fact testee07 has divergent tuning for A72/A57, on one hand, and for A53 on the other.
+Surprisingly enough, the per-clock efficiency of A72 and A53 is nearly identical on this test. But don't let this fool us into thinking that the integer SIMD pipelines of the two uarchs are identical - that is not the case at all, and the close performance in this scenario is a mere happenensance. This is demonstrated by the fact testee07 has divergent tuning for A72/A57, on one hand, and for A53 on the other.
 
 ---
 Xeon E5-2687W @ 3.10GHz
