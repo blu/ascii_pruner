@@ -67,7 +67,7 @@ Table 3. Performance of `testee00` on entry-level cores
 
 Table 4. Performance of `testee04` on entry-level cores
 
-[^4]: Bobcat (btver1) experiences Death by popcnt^tm^ here; Jaguar (btver2) does not suffer from that, but part is hard to get ahold of.  
+[^4]: Bobcat (btver1) experiences Death by popcnt™ here; Jaguar (btver2) does not suffer from that, but part is hard to get ahold of.  
 [^5]: Version used here is `testee06` - the arm64 equivalent of `testee04`.
 
 Going wider, from 16-barch to 32-batch:
