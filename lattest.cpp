@@ -30,7 +30,7 @@ int main(int, char**) {
 			"tbl v29.16b, {v13.16b}, v0.16b\n\t"
 			"tbl v30.16b, {v14.16b}, v0.16b\n\t"
 			"tbl v31.16b, {v15.16b}, v0.16b\n\t"
-			"tbl v0.16b,  {v16.16b}, v0.16b"
+			"tbl v16.16b, {v16.16b}, v0.16b"
 			: : : "memory");
 
 #else
