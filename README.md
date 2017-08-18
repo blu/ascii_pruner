@@ -16,7 +16,7 @@ inline void testee00() {
 ```
 Apparently the output string is missing its nil-termination, but that is a trivial operation which does not change the performance characteristics of the code. This holds true for the rest of the routines in this survey.
 
-I ran `testee00` on a bunch amd64 CPUs and one arm64 CPU, using different GCC and Clang compiler versions, always taking the best compiler result. Here are the clocks/character results, computed from `perf -e cycles` divided by the number of processed chars (in our case - 5 * 10^7 * 16), and truncated to the 4th digit after the decimal point:
+I ran `testee00` on a bunch of amd64 CPUs and a few arm64 CPUs, using different GCC and Clang compiler versions, always taking the best compiler result. Here are the clocks/character results, computed from `perf -e cycles` divided by the number of processed chars (in our case - 5 * 10^7 * 16), and truncated to the 4th digit after the decimal point:
 
 
 | CPU                          | Compiler & codegen flags           | clocks/character |
@@ -29,19 +29,19 @@ I ran `testee00` on a bunch amd64 CPUs and one arm64 CPU, using different GCC an
 
 Table 1. Performance of `testee00` on desktop-level cores
 
-Interesting, isn’t it - the little ARM (3-decode, 8-issue OoO) actually does better clocks/char than the wider desktop chips (you can see the actual perf stat sessions at the end of this writing). It's as if the ISA of the ARM (A64) is better suited for the task (see the instruction counts in the perf logs below) and the IPC of the A72, while lower, is still sufficiently high to out-perform the Intels per clock.
+Interesting, isn’t it - ARM's 'big' A72 core (3-decode, 8-issue OoO) actually does better clocks/char than the wider desktop chips (you can see the actual perf stat sessions at the end of this writing). It's as if the ISA of the ARM (A64) is better suited for the task (see the instruction counts in the perf logs below) and the IPC of the A72, while lower, is still sufficiently high to out-perform the Intels per clock.
 
 So, let’s move on to SIMD. Now, I don’t claim to be a seasoned NEON coder, but I get my hands dirty with ARM SIMD occasionally. I will not inline the SIMD routines here since that would choke the reader; instead, the entire testbed and participating test routines can be found in the supplied code.
 
-I took the liberty to change Daniel’s original SSSE3 pruning routine - actually, I used my version for the test. The reason? I cannot easily take 2^16 * 2^4 = 1MB look-up tables in my code - that would be a major cache thrasher for any scenarios where we don’t just prune ascii streams, but call the routine amids other work. The LUT-less SSSE3 version comes at the price of a tad more computations, but runs entirely off registers, and as you’ll see, the price for dropping the table is not prohibitive even on sheer pruning workloads. Moreover, both the new SSSE3 version and the NEON (ASIMD2) version use the same algorithm now, so the comparison is as direct as physically possible. And lastly, all tests run entirely off L1 cache.
+Daniel’s original SSSE3 pruning routine uses a look-up table to do the input vector sampling. But I used my version for the test. The reason? I cannot easily take 2^16 * 2^4 = 1MB look-up tables in my code - that would be a major cache thrasher for any scenarios where we don’t just prune ascii streams, but call the routine amids other work. The LUT-less SSSE3 version comes at the price of a tad more computations, but runs entirely off registers, and as you’ll see, the price for dropping the table is not prohibitive even on sheer pruning workloads. Moreover, both the new SSSE3 version and the NEON (ASIMD2) version use the same algorithm now, so the comparison is as direct as physically possible. And lastly, all tests run entirely off L1 cache.
 
 | CPU                          | Compiler & codegen flags            | clocks/character |
 | ---------------------------- | ----------------------------------- | ---------------- |
 | Intel Xeon E5-2687W (SNB)    | clang++-3.9 -Ofast -mssse3 -mpopcnt | .9268            |
 | Intel Xeon E3-1270v2 (IVB)   | clang++-3.7 -Ofast -mssse3 -mpopcnt | .8223            |
-| Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2           | .8232  [^1]      |
-| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3 -mpopcnt | .6671  [^2]      |
-| Marvell 8040 (Cortex-A72)    | clang++-3.6 -Ofast -mcpu=cortex-a57 | 1.4603 [^3]      |
+| Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2           | .8232       [^1] |
+| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3 -mpopcnt | .6671       [^2] |
+| Marvell 8040 (Cortex-A72)    | clang++-3.6 -Ofast -mcpu=cortex-a57 | 1.4603      [^3] |
 
 Table 2. Performance of `testee04` on desktop-level cores
 
@@ -79,7 +79,31 @@ Going wider, from 16-barch to 32-batch:
 
 Table 5. Performance of `testee07` on entry-level cores
 
-Surprisingly enough, the per-clock efficiency of A72 and A53 is nearly identical on this test. But don't let this fool us into thinking that the integer SIMD pipelines of the two uarchs are identical - that is not the case at all, and the close performance in this scenario is a mere happenensance. This is demonstrated by the fact `testee07` has divergent tuning for A72/A57, on one hand, and for A53 on the other.
+Surprisingly enough, the per-clock efficiency of A72 and A53 is nearly identical on this test. But don't let this fool you into thinking that the integer SIMD pipelines of the two uarchs are identical - that is not the case at all, and the close performance in this scenario is a mere happenensance. This is demonstrated by the fact `testee07` has divergent tuning for A72/A57, on one hand, and for A53 on the other. Perhaps we can compare the A72 to another 'big' core by an architecture licensee?
+
+Same test on Apple's custom cores:
+
+| CPU                          | Compiler & codegen flags           | clocks/character |
+| ---------------------------- | ---------------------------------- | ---------------- |
+| Apple A7 (Cyclone)           | apple clang++-8.1                  | 1.5101      [^6] |
+
+Table 6. Performance of `testee00` on Apple Cyclone
+
+[^6]: For some reason apple's clang does not unroll the inner-most loop, which artificially penalizes this core on this test.
+
+| CPU                          | Compiler & codegen flags           | clocks/character |
+| ---------------------------- | ---------------------------------- | ---------------- |
+| Apple A7 (Cyclone)           | apple clang++-8.1                  | .9136            |
+
+Table 7. Performance of `testee06` on Apple Cyclone
+
+| CPU                          | Compiler & codegen flags           | clocks/character |
+| ---------------------------- | ---------------------------------- | ---------------- |
+| Apple A7 (Cyclone)           | apple clang++-8.1                  | .6872            |
+
+Table 8. Performance of `testee07` on Apple Cyclone
+
+Clearly Apple's Cyclone behaves quite differently to ARM's A72 - Cyclone's behaviour in this test is much more in-line with the desktop chips and with the 'little' A53, leaving the A72 as the outlier at this SIMD algorithm. All thanks to "outstanding" permute latencies.
 
 ---
 Xeon E5-2687W @ 3.10GHz
@@ -340,4 +364,22 @@ user    0m1.540s
 sys     0m0.000s
 $ echo "scale=4; 1.553 * 1.5 * 10^9 / (5 * 10^7 * 32)" | bc
 1.4559
+```
+---
+Apple A7 (Cyclone) @ 1.30 GHz (sans perf)
+
+Scalar version
+```
+$ echo "scale=4; 0.929309 * 1.3 * 10^9 / (5 * 10^7 * 16)" | bc
+1.5101
+```
+ASIMD2 version, 16-batch
+```
+$ echo "scale=4; 0.562230 * 1.3 * 10^9 / (5 * 10^7 * 16)" | bc
+.9136
+```
+ASIMD2 version, 32-batch
+```
+$ echo "scale=4; 0.845820 * 1.3 * 10^9 / (5 * 10^7 * 32)" | bc
+.6872
 ```
