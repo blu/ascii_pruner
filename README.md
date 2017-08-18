@@ -62,13 +62,13 @@ Table 3. Performance of `testee00` on entry-level cores
 
 | CPU                          | Compiler & codegen flags                            | clocks/character |
 | ---------------------------- | --------------------------------------------------- | ---------------- |
-| AMD C60 (Bobcat)             | clang++-3.7 -Ofast -mssse3 -mpopcnt                 | 4.3284 [^1]      |
-| MediaTek MT8163 (Cortex-A53) | clang++-3.8 -Ofast -mcpu=cortex-a53                 | 2.0850 [^2]      |
+| AMD C60 (Bobcat)             | clang++-3.7 -Ofast -mssse3 -mpopcnt                 | 4.3284 [^4]      |
+| MediaTek MT8163 (Cortex-A53) | clang++-3.8 -Ofast -mcpu=cortex-a53                 | 2.0850 [^5]      |
 
 Table 4. Performance of `testee04` on entry-level cores
 
-[^1]: Bobcat (btver1) experiences Death by popcnt^tm^ here; Jaguar (btver2) does not suffer from that, but part is hard to get ahold of.  
-[^2]: Version used here is `testee06` - the arm64 equivalent of `testee04`.
+[^4]: Bobcat (btver1) experiences Death by popcnt^tm^ here; Jaguar (btver2) does not suffer from that, but part is hard to get ahold of.  
+[^5]: Version used here is `testee06` - the arm64 equivalent of `testee04`.
 
 Going wider, from 16-barch to 32-batch:
 
