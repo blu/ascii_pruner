@@ -369,7 +369,7 @@ $ echo "scale=4; 1.553 * 1.5 * 10^9 / (5 * 10^7 * 32)" | bc
 1.4559
 ```
 ---
-Apple A7 (Cyclone) @ 1.30 GHz (sans perf)
+Apple A7 (Cyclone) @ 1.30GHz (sans perf)
 
 Scalar version
 ```
@@ -385,4 +385,22 @@ ASIMD2 version, 32-batch
 ```
 $ echo "scale=4; 0.845820 * 1.3 * 10^9 / (5 * 10^7 * 32)" | bc
 .6872
+```
+---
+Apple A9 (Twister) @ 1.85GHz (sans perf)
+
+Scalar version
+```
+$ echo "scale=4; 0.677764 * 1.85 * 10^9 / (5 * 10^7 * 16)" | bc
+1.5673
+```
+ASIMD2 version, 16-batch
+```
+$ echo "scale=4; 0.372241 * 1.85 * 10^9 / (5 * 10^7 * 16)" | bc
+.8608
+```
+ASIMD2 version, 32-batch
+```
+$ echo "scale=4; 0.566721 * 1.85 * 10^9 / (5 * 10^7 * 32)" | bc
+.6552
 ```
