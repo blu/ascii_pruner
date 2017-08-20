@@ -62,8 +62,8 @@ Table 3. Performance of `testee00` on entry-level cores
 
 | CPU                          | Compiler & codegen flags                            | clocks/character |
 | ---------------------------- | --------------------------------------------------- | ---------------- |
-| AMD C60 (Bobcat)             | clang++-3.7 -Ofast -mssse3 -mpopcnt                 | 4.3284 [^4]      |
-| MediaTek MT8163 (Cortex-A53) | clang++-3.8 -Ofast -mcpu=cortex-a53                 | 2.0850 [^5]      |
+| AMD C60 (Bobcat)             | clang++-3.7 -Ofast -mssse3 -mpopcnt                 | 4.3284      [^4] |
+| MediaTek MT8163 (Cortex-A53) | clang++-3.8 -Ofast -mcpu=cortex-a53                 | 2.0850      [^5] |
 
 Table 4. Performance of `testee04` on entry-level cores
 
@@ -86,24 +86,27 @@ Same test on Apple's custom cores:
 | CPU                          | Compiler & codegen flags           | clocks/character |
 | ---------------------------- | ---------------------------------- | ---------------- |
 | Apple A7 (Cyclone)           | apple clang++-8.1                  | 1.5101      [^6] |
+| Apple A9 (Twister)           | apple clang++-8.1                  | 1.5673      [^6] |
 
-Table 6. Performance of `testee00` on Apple Cyclone
+Table 6. Performance of `testee00` on Apple ARMv8
 
 [^6]: For some reason apple's clang does not unroll the inner-most loop, which artificially penalizes this core on this test.
 
 | CPU                          | Compiler & codegen flags           | clocks/character |
 | ---------------------------- | ---------------------------------- | ---------------- |
 | Apple A7 (Cyclone)           | apple clang++-8.1                  | .9136            |
+| Apple A9 (Twister)           | apple clang++-8.1                  | .8608            |
 
-Table 7. Performance of `testee06` on Apple Cyclone
+Table 7. Performance of `testee06` on Apple ARMv8
 
 | CPU                          | Compiler & codegen flags           | clocks/character |
 | ---------------------------- | ---------------------------------- | ---------------- |
 | Apple A7 (Cyclone)           | apple clang++-8.1                  | .6872            |
+| Apple A9 (Twister)           | apple clang++-8.1                  | .6552            |
 
-Table 8. Performance of `testee07` on Apple Cyclone
+Table 8. Performance of `testee07` on Apple ARMv8
 
-Clearly Apple's Cyclone behaves quite differently to ARM's A72 - Cyclone's behaviour in this test is much more in-line with the desktop chips and with the 'little' A53, leaving the A72 as the outlier at this SIMD algorithm. All thanks to "outstanding" permute latencies.
+Clearly Apple's uarchs behave quite differently to ARM's A72 - their behaviour in this test is much more in-line with the desktop chips and the 'little' A53, leaving the A72 as the outlier at this SIMD algorithm. All thanks to "outstanding" permute latencies.
 
 ---
 Xeon E5-2687W @ 3.10GHz
