@@ -14,18 +14,18 @@ inline void testee00() {
     }
 }
 ```
-Apparently the output string is missing its nil-termination, but that is a trivial operation which does not change the performance characteristics of the code. This holds true for the rest of the routines in this survey.
+Routine processes a batch of 16 charactes per invocation. Apparently the output string is missing its nil termination, but that is a trivial operation which does not change the performance characteristics of the code. This holds true for the rest of the routines in this survey.
 
 I ran `testee00` on a bunch of amd64 CPUs and a few arm64 CPUs, using different GCC and Clang compiler versions, always taking the best compiler result. Here are the clocks/character results, computed from `perf -e cycles` divided by the number of processed chars (in our case - 5 * 10^7 * 16), and truncated to the 4th digit after the decimal point:
 
 
-| CPU                          | Compiler & codegen flags           | clocks/character |
-| ---------------------------- | ---------------------------------- | ---------------- |
-| Intel Xeon E5-2687W (SNB)    | g++-4.8 -Ofast                     | 1.6363           |
-| Intel Xeon E3-1270v2 (IVB)   | g++-5.1 -Ofast                     | 1.6186           |
-| Intel i7-5820K (HSW)         | g++-4.8 -Ofast                     | 1.5223           |
-| AMD Ryzen 7 1700 (Zen)       | g++-5.4 -Ofast                     | 1.4113           |
-| Marvell 8040 (Cortex-A72)    | g++-5.4 -Ofast                     | 1.3805           |
+| CPU                                | Compiler & codegen flags           | clocks/character |
+| ---------------------------------- | ---------------------------------- | ---------------- |
+| Intel Xeon E5-2687W (Sandy Bridge) | g++-4.8 -Ofast                     | 1.6363           |
+| Intel Xeon E3-1270v2 (Ivy Bridge)  | g++-5.1 -Ofast                     | 1.6186           |
+| Intel i7-5820K (Haswell)           | g++-4.8 -Ofast                     | 1.5223           |
+| AMD Ryzen 7 1700 (Zen)             | g++-5.4 -Ofast                     | 1.4113           |
+| Marvell 8040 (Cortex-A72)          | g++-5.4 -Ofast                     | 1.3805           |
 
 Table 1. Performance of `testee00` on desktop-level cores
 
@@ -35,13 +35,13 @@ So, let’s move on to SIMD. Now, I don’t claim to be a seasoned NEON coder, b
 
 Daniel’s original SSSE3 pruning routine uses a look-up table to do the input vector sampling. But I used another algorithm for the test. The reason? I cannot easily take 2^16 * 2^4 = 1MB look-up tables in my code - that would be a major cache thrasher for any scenarios where we don’t just prune ascii streams, but call the routine amids other work. The LUT-less SSSE3 version comes at the price of a tad more computations, but runs entirely off registers, and as you’ll see, the price for dropping the table is not prohibitive even on sheer pruning workloads. Moreover, both the new SSSE3 version and the NEON (ASIMD2) version use the same algorithm now, so the comparison is as direct as physically possible. And lastly, all tests run entirely off L1 cache.
 
-| CPU                          | Compiler & codegen flags            | clocks/character |
-| ---------------------------- | ----------------------------------- | ---------------- |
-| Intel Xeon E5-2687W (SNB)    | clang++-3.9 -Ofast -mssse3 -mpopcnt | .9268            |
-| Intel Xeon E3-1270v2 (IVB)   | clang++-3.7 -Ofast -mssse3 -mpopcnt | .8223            |
-| Intel i7-5820K (HSW)         | clang++-3.9 -Ofast -mavx2           | .8232       [^1] |
-| AMD Ryzen 7 1700 (Zen)       | clang++-4.0 -Ofast -mssse3 -mpopcnt | .6671       [^2] |
-| Marvell 8040 (Cortex-A72)    | clang++-3.6 -Ofast -mcpu=cortex-a57 | 1.4603      [^3] |
+| CPU                                | Compiler & codegen flags            | clocks/character |
+| ---------------------------------- | ----------------------------------- | ---------------- |
+| Intel Xeon E5-2687W (Sandy Bridge) | clang++-3.9 -Ofast -mssse3 -mpopcnt | .9268            |
+| Intel Xeon E3-1270v2 (Ivy Bridge)  | clang++-3.7 -Ofast -mssse3 -mpopcnt | .8223            |
+| Intel i7-5820K (Haswell)           | clang++-3.9 -Ofast -mavx2           | .8232       [^1] |
+| AMD Ryzen 7 1700 (Zen)             | clang++-4.0 -Ofast -mssse3 -mpopcnt | .6671       [^2] |
+| Marvell 8040 (Cortex-A72)          | clang++-3.6 -Ofast -mcpu=cortex-a57 | 1.4603      [^3] |
 
 Table 2. Performance of `testee04` on desktop-level cores
 
@@ -79,30 +79,31 @@ Going wider, from 16-barch to 32-batch:
 
 Table 5. Performance of `testee07` on entry-level cores
 
-Surprisingly enough, the per-clock efficiency of A72 and A53 is nearly identical on this test. But don't let this fool you into thinking that the integer SIMD pipelines of the two uarchs are identical - that is not the case at all, and the close performance in this scenario is a mere happenensance. This is demonstrated by the fact `testee07` has divergent tuning for A72/A57, on one hand, and for A53 on the other. Perhaps we can compare the A72 to another 'big' core by an architecture licensee?
+Surprisingly enough, the per-clock efficiency of A72 on this test is nearly identical to that of A53. But don't let this fool you into thinking that the integer SIMD pipelines of the two uarchs are identical - that is not the case at all, and the close performance in this scenario is a mere happenensance. This is demonstrated by the fact `testee07` has divergent tuning for A72/A57 compared to A53. Perhaps we can compare the A72 to another 'big' core by an architecture licensee?
 
 Same test on Apple's custom cores:
 
 | CPU                          | Compiler & codegen flags           | clocks/character |
 | ---------------------------- | ---------------------------------- | ---------------- |
-| Apple A7 (Cyclone)           | apple clang++-8.1                  | 1.5101      [^6] |
-| Apple A9 (Twister)           | apple clang++-8.1                  | 1.5673      [^6] |
+| Apple A7 (Cyclone)           | apple clang++-8.1 -Ofast           | 1.0507           |
+| Apple A8 (Typhoon)           | apple clang++-8.1 -Ofast           | 1.1102           |
+| Apple A9 (Twister)           | apple clang++-8.1 -Ofast           | 1.0485           |
 
 Table 6. Performance of `testee00` on Apple ARMv8
 
-[^6]: For some reason apple's clang does not unroll the inner-most loop, which artificially penalizes this core on this test.
-
 | CPU                          | Compiler & codegen flags           | clocks/character |
 | ---------------------------- | ---------------------------------- | ---------------- |
-| Apple A7 (Cyclone)           | apple clang++-8.1                  | .9136            |
-| Apple A9 (Twister)           | apple clang++-8.1                  | .8608            |
+| Apple A7 (Cyclone)           | apple clang++-8.1 -Ofast           | .9130            |
+| Apple A8 (Typhoon)           | apple clang++-8.1 -Ofast           | .9153            |
+| Apple A9 (Twister)           | apple clang++-8.1 -Ofast           | .8598            |
 
 Table 7. Performance of `testee06` on Apple ARMv8
 
 | CPU                          | Compiler & codegen flags           | clocks/character |
 | ---------------------------- | ---------------------------------- | ---------------- |
-| Apple A7 (Cyclone)           | apple clang++-8.1                  | .6872            |
-| Apple A9 (Twister)           | apple clang++-8.1                  | .6552            |
+| Apple A7 (Cyclone)           | apple clang++-8.1 -Ofast           | .6868            |
+| Apple A8 (Typhoon)           | apple clang++-8.1 -Ofast           | .7213            |
+| Apple A9 (Twister)           | apple clang++-8.1 -Ofast           | .6552            |
 
 Table 8. Performance of `testee07` on Apple ARMv8
 
@@ -373,34 +374,52 @@ Apple A7 (Cyclone) @ 1.30GHz (sans perf)
 
 Scalar version
 ```
-$ echo "scale=4; 0.929309 * 1.3 * 10^9 / (5 * 10^7 * 16)" | bc
-1.5101
+$ echo "scale=4; 0.646607 * 1.3 * 10^9 / (5 * 10^7 * 16)" | bc
+1.0507
 ```
 ASIMD2 version, 16-batch
 ```
-$ echo "scale=4; 0.562230 * 1.3 * 10^9 / (5 * 10^7 * 16)" | bc
-.9136
+$ echo "scale=4; 0.561868 * 1.3 * 10^9 / (5 * 10^7 * 16)" | bc
+.9130
 ```
 ASIMD2 version, 32-batch
 ```
-$ echo "scale=4; 0.845820 * 1.3 * 10^9 / (5 * 10^7 * 32)" | bc
-.6872
+$ echo "scale=4; 0.845359 * 1.3 * 10^9 / (5 * 10^7 * 32)" | bc
+.6868
+```
+---
+Apple A8 (Typhoon) @ 1.50GHz (sans perf)
+
+Scalar version
+```
+$ echo "scale=4; 0.592141 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
+1.1102
+```
+ASIMD2 version, 16-batch
+```
+$ echo "scale=4; 0.488176 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
+.9153
+```
+ASIMD2 version, 32-batch
+```
+$ echo "scale=4; 0.769447 * 1.5 * 10^9 / (5 * 10^7 * 32)" | bc
+.7213
 ```
 ---
 Apple A9 (Twister) @ 1.85GHz (sans perf)
 
 Scalar version
 ```
-$ echo "scale=4; 0.677764 * 1.85 * 10^9 / (5 * 10^7 * 16)" | bc
-1.5673
+$ echo "scale=4; 0.453420 * 1.85 * 10^9 / (5 * 10^7 * 16)" | bc
+1.0485
 ```
 ASIMD2 version, 16-batch
 ```
-$ echo "scale=4; 0.372241 * 1.85 * 10^9 / (5 * 10^7 * 16)" | bc
-.8608
+$ echo "scale=4; 0.371842 * 1.85 * 10^9 / (5 * 10^7 * 16)" | bc
+.8598
 ```
 ASIMD2 version, 32-batch
 ```
-$ echo "scale=4; 0.566721 * 1.85 * 10^9 / (5 * 10^7 * 32)" | bc
+$ echo "scale=4; 0.566688 * 1.85 * 10^9 / (5 * 10^7 * 32)" | bc
 .6552
 ```

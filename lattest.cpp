@@ -72,7 +72,7 @@ int main(int, char**) {
 			"pshufb %%xmm0, %%xmm13\n\t"
 			"pshufb %%xmm0, %%xmm14\n\t"
 			"pshufb %%xmm0, %%xmm15\n\t"
-			"pshufb %%xmm0, %%xmm0"
+			"pshufb %%xmm0, %%xmm8"
 			: : : "memory");
 
 #else
