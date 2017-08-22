@@ -112,13 +112,14 @@ void print_uint8x16(
 // fully-scalar version; good performance on both amd64 and arm64 above-entry-level parts;
 // particularly on cortex-a72 this does an IPC of 2.94 which is excellent! ryzen also
 // does an IPC above 4, which is remarkable
-inline void testee00() {
+inline size_t testee00() {
 	size_t i = 0, pos = 0;
 	while (i < 16) {
 		const char c = input[i++];
 		output[pos] = c;
 		pos += (c > 32 ? 1 : 0);
 	}
+	return pos;
 }
 
 #if __aarch64__

@@ -5,16 +5,17 @@ Well, challenge accepted!
 The author had started with a baseline - a serial implementation, so I too decided to start from there and move up. Let’s call this baseline `testee00` and get familiar with it before we move on:
 
 ```c
-inline void testee00() {
+inline size_t testee00() {
     size_t i = 0, pos = 0;
     while (i < 16) {
         const char c = input[i++];
         output[pos] = c;
         pos += (c > 32 ? 1 : 0);
     }
+    return pos;
 }
 ```
-Routine processes a batch of 16 charactes per invocation. Apparently the output string is missing its nil termination, but that is a trivial operation which does not change the performance characteristics of the code. This holds true for the rest of the routines in this survey.
+Routine processes a batch of 16 charactes per invocation and returns the count of non-blanks from that batch. Apparently the output string is missing its nil termination, but that is a trivial operation which does not change the performance characteristics of the code. This holds true for the rest of the routines in this survey.
 
 I ran `testee00` on a bunch of amd64 CPUs and a few arm64 CPUs, using different GCC and Clang compiler versions, always taking the best compiler result. Here are the clocks/character results, computed from `perf -e cycles` divided by the number of processed chars (in our case - 5 * 10^7 * 16), and truncated to the 4th digit after the decimal point:
 
