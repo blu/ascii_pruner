@@ -47,7 +47,7 @@ Daniel’s original SSSE3 pruning routine uses a look-up table to do the input v
 Table 2. Performance of `testee04` on desktop-level cores
 
 [^1]: AVX2-128 used for Haswell, as the same intrinsics work with the newer target, while producing better results than SSSE3.  
-[^2]: SSSE3 yields significantly better IPC than AVX2 on Ryzen, so that the overall performance of SSSE3 code is better, despite the increased instruction count.  
+[^2]: SSSE3 yields significantly better IPC than AVX2 on Ryzen, so the overall performance of SSSE3 code is better despite the increased instruction count.  
 [^3]: Version used here is `testee07` - a twice-wider (32-batch) version of `testee04`; that still proves insufficient to fully counter the pipeline bubbles brought about by A72's ASIMD latencies.
 
 As you see, the per-clock efficiency advantage is approx. 2x for the desktop amd64 cores - cores that at the same (or similar) fabnode would be 4x the area of the A72. That said, the employed SIMD algorithm does not perform well on A72; actually, A72's SIMD does not scale at all, let alone nearly as good as Intel's or AMD's, with this algorithm. This appears to be due to an uarch issue with A72 - its SIMD exhibits high latencies for the permutation ops employed by our algorithm. As a result, the scalar version performs better than the 32-wide SIMD version! As we will see below, that is not the case with other ARMv8 uarchs, though.
@@ -103,7 +103,7 @@ Table 7. Performance of `testee06` on Apple ARMv8
 | CPU                          | Compiler & codegen flags           | clocks/character |
 | ---------------------------- | ---------------------------------- | ---------------- |
 | Apple A7 (Cyclone)           | apple clang++-8.1 -Ofast           | .6868            |
-| Apple A8 (Typhoon)           | apple clang++-8.1 -Ofast           | .7213            |
+| Apple A8 (Typhoon)           | apple clang++-8.1 -Ofast           | .7206            |
 | Apple A9 (Twister)           | apple clang++-8.1 -Ofast           | .6552            |
 
 Table 8. Performance of `testee07` on Apple ARMv8
@@ -403,8 +403,8 @@ $ echo "scale=4; 0.488176 * 1.5 * 10^9 / (5 * 10^7 * 16)" | bc
 ```
 ASIMD2 version, 32-batch
 ```
-$ echo "scale=4; 0.769447 * 1.5 * 10^9 / (5 * 10^7 * 32)" | bc
-.7213
+$ echo "scale=4; 0.768718 * 1.5 * 10^9 / (5 * 10^7 * 32)" | bc
+.7206
 ```
 ---
 Apple A9 (Twister) @ 1.85GHz (sans perf)
