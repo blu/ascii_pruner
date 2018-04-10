@@ -295,7 +295,7 @@ $ echo "scale=4; 2336626281 / (5 * 10^7 * 32)" | bc
 1.4603
 ```
 ---
-AMD C60 (Bobcat) @ 1.333GHz
+AMD C60 (Bobcat) @ 1.33GHz
 
 Scalar version
 ```
