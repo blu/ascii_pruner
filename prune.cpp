@@ -1,4 +1,7 @@
 // pruning of blanks from an ascii stream -- timing of candidate routines
+#if defined(__ARM_FEATURE_SVE)
+	#include <arm_sve.h>
+#endif
 #if __aarch64__
 	#include <arm_neon.h>
 #elif __SSSE3__
@@ -614,6 +617,59 @@ inline size_t testee07() {
 	return len0 + len1 + len2 + len3 + len4 + len5 + len6 + len7;
 }
 
+#if defined(__ARM_FEATURE_SVE)
+// scatter-enabled version of testee01, 64-batch on sve512
+inline size_t testee08() {
+	svbool_t const pr = svptrue_pat_b8(SV_VL64); // assumed at least sve512
+
+	svuint8_t const vinput = svld1_u8(pr, input);
+	svbool_t const pr_keep = svcmpgt_n_u8(pr, vinput, ' ');
+
+	// prefix sum of to-keep mask
+	svuint8_t prfsum = svdup_n_u8_z(pr_keep, 1);
+	prfsum = svadd_u8_x(pr, prfsum, svext_u8(svdup_n_u8(0), prfsum, 64 -  1)); // assumed exactly sve512
+	prfsum = svadd_u8_x(pr, prfsum, svext_u8(svdup_n_u8(0), prfsum, 64 -  2)); // TODO: possible to use with VLEN?
+	prfsum = svadd_u8_x(pr, prfsum, svext_u8(svdup_n_u8(0), prfsum, 64 -  4));
+	prfsum = svadd_u8_x(pr, prfsum, svext_u8(svdup_n_u8(0), prfsum, 64 -  8));
+	prfsum = svadd_u8_x(pr, prfsum, svext_u8(svdup_n_u8(0), prfsum, 64 - 16));
+	prfsum = svadd_u8_x(pr, prfsum, svext_u8(svdup_n_u8(0), prfsum, 64 - 32));
+	size_t const kept = svlastb_u8(pr_keep, prfsum);
+	prfsum = svsub_u8_x(pr, prfsum, svdup_n_u8(1)); // 0-based prefix sum
+
+	// 8-bit pred -> 32-bit pred
+	svbool_t const pr_keep0 = svunpklo_b(svunpklo_b(pr_keep)); // - - - +
+	svbool_t const pr_keep1 = svunpkhi_b(svunpklo_b(pr_keep)); // - - + -
+	svbool_t const pr_keep2 = svunpklo_b(svunpkhi_b(pr_keep)); // - + - -
+	svbool_t const pr_keep3 = svunpkhi_b(svunpkhi_b(pr_keep)); // + - - -
+
+	// 8-bit chars -> 32-bit chars
+	svuint32_t const winput0 = svunpklo_u32(svunpklo_u16(vinput));
+	svuint32_t const winput1 = svunpkhi_u32(svunpklo_u16(vinput));
+	svuint32_t const winput2 = svunpklo_u32(svunpkhi_u16(vinput));
+	svuint32_t const winput3 = svunpkhi_u32(svunpkhi_u16(vinput));
+
+	// 8-bit offsets -> 32-bit offsets
+	svuint32_t const woffset0 = svunpklo_u32(svunpklo_u16(prfsum));
+	svuint32_t const woffset1 = svunpkhi_u32(svunpklo_u16(prfsum));
+	svuint32_t const woffset2 = svunpklo_u32(svunpkhi_u16(prfsum));
+	svuint32_t const woffset3 = svunpkhi_u32(svunpkhi_u16(prfsum));
+
+	if (svptest_any(pr_keep0, pr_keep0))
+		svst1b_scatter_offset(pr_keep0, output, woffset0, winput0);
+
+	if (svptest_any(pr_keep1, pr_keep1))
+		svst1b_scatter_offset(pr_keep1, output, woffset1, winput1);
+
+	if (svptest_any(pr_keep2, pr_keep2))
+		svst1b_scatter_offset(pr_keep2, output, woffset2, winput2);
+
+	if (svptest_any(pr_keep3, pr_keep3))
+		svst1b_scatter_offset(pr_keep3, output, woffset3, winput3);
+
+	return kept;
+}
+
+#endif
 #elif __SSSE3__ && __POPCNT__
 // pruner proper, 16-batch; amd64 cannot properly recreate arm64's testee04, so get creative
 inline size_t testee04() {
@@ -765,7 +821,10 @@ int main(int, char**) {
 
 	for (size_t i = 0; i < rep; ++i) {
 
-#if TESTEE == 7
+#if TESTEE == 8 && defined(__ARM_FEATURE_SVE)
+		testee08();
+
+#elif TESTEE == 7
 		testee07();
 
 #elif TESTEE == 6
