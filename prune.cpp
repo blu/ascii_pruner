@@ -624,6 +624,7 @@ inline size_t testee08() {
 
 	svuint8_t const vinput = svld1_u8(pr, input);
 	svbool_t const pr_keep = svcmpgt_n_u8(pr, vinput, ' ');
+	size_t const kept = svcntp_b8(pr_keep, pr_keep);
 
 	// prefix sum of to-keep mask
 	svuint8_t prfsum = svdup_n_u8_z(pr_keep, 1);
@@ -633,7 +634,6 @@ inline size_t testee08() {
 	prfsum = svadd_u8_x(pr, prfsum, svext_u8(svdup_n_u8(0), prfsum, 64 -  8));
 	prfsum = svadd_u8_x(pr, prfsum, svext_u8(svdup_n_u8(0), prfsum, 64 - 16));
 	prfsum = svadd_u8_x(pr, prfsum, svext_u8(svdup_n_u8(0), prfsum, 64 - 32));
-	size_t const kept = svlastb_u8(pr_keep, prfsum);
 	prfsum = svsub_u8_x(pr, prfsum, svdup_n_u8(1)); // 0-based prefix sum
 
 	// 8-bit pred -> 32-bit pred
