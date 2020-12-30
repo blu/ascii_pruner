@@ -89,6 +89,7 @@ Same test on Apple's custom cores:
 | Apple A7 (Cyclone)           | apple clang++-8.1 -Ofast           | 1.0507           |
 | Apple A8 (Typhoon)           | apple clang++-8.1 -Ofast           | 1.1102           |
 | Apple A9 (Twister)           | apple clang++-8.1 -Ofast           | 1.0485           |
+| Apple M1 (Firestorm)         | apple clang++-12.0 -Ofast          | .8800            |
 
 Table 6. Performance of `testee00` on Apple ARMv8
 
@@ -97,6 +98,7 @@ Table 6. Performance of `testee00` on Apple ARMv8
 | Apple A7 (Cyclone)           | apple clang++-8.1 -Ofast           | .9130            |
 | Apple A8 (Typhoon)           | apple clang++-8.1 -Ofast           | .9153            |
 | Apple A9 (Twister)           | apple clang++-8.1 -Ofast           | .8598            |
+| Apple M1 (Firestorm)         | apple clang++-12.0 -Ofast          | .5600            |
 
 Table 7. Performance of `testee06` on Apple ARMv8
 
@@ -105,6 +107,7 @@ Table 7. Performance of `testee06` on Apple ARMv8
 | Apple A7 (Cyclone)           | apple clang++-8.1 -Ofast           | .6868            |
 | Apple A8 (Typhoon)           | apple clang++-8.1 -Ofast           | .7206            |
 | Apple A9 (Twister)           | apple clang++-8.1 -Ofast           | .6552            |
+| Apple M1 (Firestorm)         | apple clang++-12.0 -Ofast          | .4000            |
 
 Table 8. Performance of `testee07` on Apple ARMv8
 
@@ -423,4 +426,40 @@ ASIMD2 version, 32-batch
 ```
 $ echo "scale=4; 0.566688 * 1.85 * 10^9 / (5 * 10^7 * 32)" | bc
 .6552
+```
+---
+Apple M1 (Firestorm) @ 3.2GHz (sans perf)
+
+Scalar version
+```
+$ clang++ -Ofast prune.cpp -mcpu=native
+$ /usr/bin/time -p ./a.out
+0123456789abc
+real         0.22
+user         0.22
+sys          0.00
+$ echo "scale=4; 0.22 * 3.2 * 10^9 / (5 * 10^7 * 16)" | bc
+.8800
+```
+ASIMD2 version, 16-batch
+```
+$ clang++ -Ofast prune.cpp -mcpu=native -DTESTEE=6 -DSAME_LATENCY_Q_AND_D
+$ /usr/bin/time -p ./a.out
+0123456789abc
+real         0.14
+user         0.14
+sys          0.00
+$ echo "scale=4; 0.14 * 3.2 * 10^9 / (5 * 10^7 * 16)" | bc
+.5600
+```
+ASIMD2 version, 32-batch
+```
+$ clang++ -Ofast prune.cpp -mcpu=native -DTESTEE=7 -DSAME_LATENCY_Q_AND_D
+$ /usr/bin/time -p ./a.out
+0123456789abcdef123456789abc
+real         0.20
+user         0.20
+sys          0.00
+$ echo "scale=4; 0.20 * 3.2 * 10^9 / (5 * 10^7 * 32)" | bc
+.4000
 ```
