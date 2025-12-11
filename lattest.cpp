@@ -1,4 +1,4 @@
-// latency accumulator -- a chain of ops with data dependency between each two ops;
+// tput calculator -- a chain of ops with data dependency between each two ops;
 // to break the dependency set COISSUE
 
 #if __aarch64__ == 0 && __SSSE3__ == 0
