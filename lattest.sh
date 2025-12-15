@@ -71,5 +71,5 @@ else
 	TIME_A=$(`which time` -f %e ./lattest_nocoissue 2>&1)
 	TIME_B=$(`which time` -f %e ./lattest_coissue 2>&1)
 fi
-echo "scale=4; ${TIME_A} * ${CLOCK} * 10^6 / (5 * 10^8 * 16)" | bc
-echo "scale=4; ${TIME_B} * ${CLOCK} * 10^6 / (5 * 10^8 * 16)" | bc
+echo "scale=4; ${TIME_A} * ${CLOCK} * 10^6 / (2 * 10^9 * 16)" | bc
+echo "scale=4; ${TIME_B} * ${CLOCK} * 10^6 / (2 * 10^9 * 16)" | bc

@@ -8,7 +8,7 @@
 #include <stddef.h>
 
 int main(int, char**) {
-	size_t const rep = size_t(5e8);
+	size_t const rep = size_t(2e9);
 
 	for (size_t i = 0; i < rep; ++i) {
 
