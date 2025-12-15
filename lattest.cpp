@@ -1,4 +1,4 @@
-// tput calculator -- a chain of ops with data dependency between each two ops;
+// latency/tput calculator -- a chain of ops with data dependency between each two ops;
 // to break the dependency set COISSUE
 
 #if __aarch64__ == 0 && __SSSE3__ == 0
@@ -50,7 +50,7 @@ int main(int, char**) {
 			"tbl v14.16b, {v13.16b}, v0.16b\n\t"
 			"tbl v15.16b, {v14.16b}, v0.16b\n\t"
 			"tbl v16.16b, {v15.16b}, v0.16b\n\t"
-			"tbl v17.16b, {v16.16b}, v0.16b"
+			"tbl v1.16b,  {v16.16b}, v0.16b"
 			: : : "memory");
 
 #endif
