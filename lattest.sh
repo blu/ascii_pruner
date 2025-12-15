@@ -9,15 +9,20 @@ if [ -z `which bc` ]; then
 	exit 254
 fi
 
-if [[ `uname` == "Darwin" ]]; then
-	# it is not trivial to look up the p-cores clock on macOS -- leave that to user
-	if [[ $# -ne 1 ]]; then
+if [[ $# -eq 1 ]]; then
+	CLOCK=$1
+else
+	if [[ `uname` == "Darwin" ]]; then
+		# it is not trivial to look up the p-cores clock on macOS -- leave that to user
 		echo "usage: $0 p-core-MHz"
 		exit 250
 	fi
-	CLOCK=$1
-else
 	CLOCK=`lscpu | grep -m 1 -E "^CPU[[:space:][:alpha:]]+MHz" | sed "s/^[^:]\+:[[:space:]]\+//g"`
+	if [ -z ${CLOCK} ]; then
+		# linux lscpu reports can omit clock -- again, leave clock to user
+		echo "usage: $0 p-core-MHz"
+		exit 250
+	fi
 fi
 
 CFLAGS=(
